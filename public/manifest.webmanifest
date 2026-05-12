@@ -1,0 +1,15 @@
+{
+  "name": "AJVC Inventario",
+  "short_name": "AJVC",
+  "description": "Inventario K-beauty AJVC",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a1f44",
+  "theme_color": "#0a1f44",
+  "lang": "es",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
