@@ -4,26 +4,8 @@ const PRODUCTS_KEY = 'ajvc.products.v1';
 const TX_KEY = 'ajvc.transactions.v1';
 const SEED_FLAG = 'ajvc.seeded.v1';
 
-export const SEED_PRODUCTS = [
-  {
-    id: '01', categoria: 'Skincare', marca: 'APLB',
-    producto: 'Retinol Vitamina C Crema',
-    cantInicial: 1, entradas: 0, salidas: 0, stockActual: 1,
-    ubicacion: 'Trujillo', costoPEN: 59, pVentaPEN: 85.51, pOfertaPEN: 69.41,
-  },
-  {
-    id: '02', categoria: 'Skincare', marca: 'Biodance',
-    producto: 'Collagen Rosa Mask',
-    cantInicial: 4, entradas: 0, salidas: 0, stockActual: 4,
-    ubicacion: 'Bélgica', costoPEN: 15.96, pVentaPEN: 29, pOfertaPEN: 18.78,
-  },
-  {
-    id: '03', categoria: 'Skincare', marca: 'Biodance',
-    producto: 'Mascarillas Niacinamida Amarilla',
-    cantInicial: 1, entradas: 0, salidas: 0, stockActual: 1,
-    ubicacion: 'Bélgica', costoPEN: 15.96, pVentaPEN: 29, pOfertaPEN: 18.78,
-  },
-];
+// Catálogo vacío en el primer arranque. Los productos llegan al sincronizar con el Google Sheet.
+export const SEED_PRODUCTS = [];
 
 function loadProducts() {
   try {
