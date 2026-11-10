@@ -1,4 +1,4 @@
-const CACHE = 'ajvc-v1';
+const CACHE = 'ajvc-v2';
 const ASSETS = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg'];
 
 self.addEventListener('install', (e) => {
@@ -18,6 +18,8 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const { request } = e;
   if (request.method !== 'GET') return;
+  // Solo archivos de la propia app; Firebase maneja su propia caché.
+  if (new URL(request.url).origin !== self.location.origin) return;
   e.respondWith(
     fetch(request)
       .then((res) => {

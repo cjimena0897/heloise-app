@@ -491,6 +491,15 @@ label.field > span {
 .badge.credito { background: var(--red-bg); color: var(--red); }
 .print-only { display: none; }
 
+/* Cuenta / sincronización */
+.login { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: 16px; background: var(--navy-800); }
+.login .card { width: 100%; max-width: 380px; padding: 22px; }
+.logo.big { width: 56px; height: 56px; margin: 0 auto 8px; border-radius: 14px; background: var(--accent); color: var(--navy-800); display: grid; place-items: center; font-weight: 800; font-size: 20px; }
+.topbar .actions .sync-pill { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.sync-pill i { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; }
+.sync-pill.busy i { background: var(--accent); }
+.sync-pill.off i { background: #f87171; }
+
 @media print {
   .print-only { display: block; }
   .cart-bar { display: none !important; }

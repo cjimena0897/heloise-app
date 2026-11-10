@@ -1,0 +1,20 @@
+rules_version = '2';
+
+// Solo las personas de esta lista pueden ver y modificar los datos.
+// Para agregar o quitar a alguien, edita la lista (en minúsculas) y publica las reglas.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function permitido() {
+      return request.auth != null
+        && request.auth.token.email.lower() in [
+          'persona1@gmail.com',
+          'persona2@gmail.com',
+          'persona3@gmail.com'
+        ];
+    }
+
+    match /{document=**} {
+      allow read, write: if permitido();
+    }
+  }
+}

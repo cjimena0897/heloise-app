@@ -32,6 +32,8 @@ function fmtDate(iso, withTime = true) {
   }
 }
 
+const quien = (email) => (email ? ` · por ${email.split('@')[0]}` : '');
+
 function waLink(telefono, texto) {
   let d = String(telefono || '').replace(/\D/g, '');
   if (!d) return null;
@@ -167,7 +169,7 @@ function SalesList({ sales, onOpen }) {
             <div style={{ minWidth: 0 }}>
               <div className="ttl">{s.cliente} <Badge estado={st.estado} /></div>
               <div className="sub">
-                {fmtDate(s.fecha)}{s.evento ? ` · ${s.evento}` : ''}
+                {fmtDate(s.fecha)}{s.evento ? ` · ${s.evento}` : ''}{quien(s.vendedor)}
               </div>
               <div className="sub items">
                 {s.items.map((i) => `${i.cantidad}× ${i.productoNombre}${i.descuentoPct > 0 ? ` (−${i.descuentoPct}%)` : ''}`).join(', ')}
@@ -295,7 +297,7 @@ function SaleDetail({ sale, onClose }) {
   return (
     <Modal open={!!sale} onClose={onClose} title={sale.cliente}>
       <div className="sub" style={{ fontSize: 13, color: 'var(--muted)', marginTop: -6, marginBottom: 10 }}>
-        {fmtDate(sale.fecha)}{sale.evento ? ` · ${sale.evento}` : ''}{sale.telefono ? ` · 📱 ${sale.telefono}` : ''}
+        {fmtDate(sale.fecha)}{sale.evento ? ` · ${sale.evento}` : ''}{sale.telefono ? ` · 📱 ${sale.telefono}` : ''}{quien(sale.vendedor)}
       </div>
 
       <div className="card" style={{ padding: '0 14px' }}>
@@ -325,7 +327,7 @@ function SaleDetail({ sale, onClose }) {
       {(sale.pagos || []).length === 0 && <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 10 }}>Sin pagos (crédito).</div>}
       {(sale.pagos || []).map((p) => (
         <div key={p.id} className="row between" style={{ fontSize: 13, padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
-          <span>{fmtDate(p.fecha)} · {p.metodo || '—'}</span>
+          <span>{fmtDate(p.fecha)} · {p.metodo || '—'}{quien(p.vendedor)}</span>
           <span className="row" style={{ gap: 6 }}>
             <b>{money(p.monto)}</b>
             <button
