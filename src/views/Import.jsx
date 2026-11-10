@@ -284,7 +284,10 @@ export default function Import() {
                     </div>
                     {it.errores.length > 0 && <div className="text-xs text-destructive">Fila {it.fila}: {it.errores.join(', ')}</div>}
                     {it.estado === 'existe' && (
-                      <div className="text-xs text-muted-foreground">Stock {it.existente.stockActual} → {it.existente.stockActual + (it.cantidad || 0)}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {it.cantidad > 0 ? `Stock ${it.existente.stockActual} → ${it.existente.stockActual + it.cantidad}` : `Stock ${it.existente.stockActual}`}
+                        {it.foto && (it.existente.foto ? ' · ya tiene foto (se mantiene)' : ' · + foto')}
+                      </div>
                     )}
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
@@ -322,7 +325,7 @@ function Done({ done, onBack, onAgain }) {
           <div className="grid size-12 place-items-center rounded-full bg-success-soft"><Check className="size-6 text-success" /></div>
           <div className="text-lg font-semibold">Pedido importado</div>
           <p className="text-sm text-muted-foreground">
-            {done.nuevos} productos nuevos · {done.existentes} actualizados · {done.unidades} unidades
+            {done.nuevos} productos nuevos · {done.existentes} actualizados · {done.unidades} unidades{done.fotos ? ` · ${done.fotos} fotos` : ''}
           </p>
         </CardContent>
       </Card>

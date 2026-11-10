@@ -127,7 +127,7 @@ export function buildPreview(rows, headerIdx, mapping, opts, findExisting, exist
   const items = [];
   const byCode = new Map();
   const warnings = [];
-  if (mapping.cantidad == null) warnings.push('No hay columna de cantidad: se cuenta 1 unidad por fila.');
+  if (mapping.cantidad == null) warnings.push('El archivo no tiene columna de cantidad: no se sumarán unidades (sirve para cargar solo fotos o precios).');
 
   rows.forEach((r, i) => {
     if (i <= headerIdx || isBlankRow(r)) return;
@@ -138,7 +138,7 @@ export function buildPreview(rows, headerIdx, mapping, opts, findExisting, exist
     if (!producto && !codigo) return;
     // Filas de totales ("Subtotal", "Total") no son productos.
     if (!codigo && /^(sub ?total|total)\b/i.test(producto)) return;
-    const cant = mapping.cantidad != null ? parseNumber(get(r, 'cantidad')) : 1;
+    const cant = mapping.cantidad != null ? parseNumber(get(r, 'cantidad')) : 0;
     const it = {
       fila: i + 1,
       codigo,
@@ -150,7 +150,7 @@ export function buildPreview(rows, headerIdx, mapping, opts, findExisting, exist
       venta: parseNumber(get(r, 'venta')),
       oferta: parseNumber(get(r, 'oferta')),
       ubicacion: String(get(r, 'ubicacion') ?? '').trim(),
-      foto: /^https?:\/\//i.test(String(get(r, 'foto') ?? '').trim()) ? String(get(r, 'foto')).trim() : '',
+      foto: /^(https?:\/\/|data:image\/)/i.test(String(get(r, 'foto') ?? '').trim()) ? String(get(r, 'foto')).trim() : '',
       errores: [],
       generado: false,
     };
