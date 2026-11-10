@@ -495,7 +495,7 @@ export function importInventory(items, { lote = '', actualizarPrecios = false } 
   const fecha = new Date().toISOString();
   const quien = vendedor();
   const ops = [];
-  let nuevos = 0, existentes = 0, unidades = 0, i = 0;
+  let nuevos = 0, existentes = 0, unidades = 0, fotos = 0, i = 0;
   for (const it of items) {
     if (it.estado !== 'nuevo' && it.estado !== 'existe') continue;
     const qty = Number(it.cantidad) || 0;
@@ -512,6 +512,7 @@ export function importInventory(items, { lote = '', actualizarPrecios = false } 
         }),
       });
       nuevos++;
+      if (it.foto) fotos++;
     } else {
       id = it.existente.id;
       const data = {};
@@ -520,7 +521,7 @@ export function importInventory(items, { lote = '', actualizarPrecios = false } 
         if (it.venta != null) data.pVentaPEN = it.venta;
         if (it.oferta != null) data.pOfertaPEN = it.oferta;
       }
-      if (it.foto && !it.existente.foto) data.foto = it.foto;
+      if (it.foto && !it.existente.foto) { data.foto = it.foto; fotos++; }
       if (qty > 0 || Object.keys(data).length) {
         ops.push({ t: 'update', col: 'productos', id, data, inc: qty > 0 ? { entradas: qty } : undefined });
       }
@@ -539,7 +540,7 @@ export function importInventory(items, { lote = '', actualizarPrecios = false } 
     }
   }
   commit(ops);
-  return { nuevos, existentes, unidades };
+  return { nuevos, existentes, unidades, fotos };
 }
 
 // ---------- migración local → nube ----------
