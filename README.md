@@ -28,6 +28,8 @@ npm run build
 
 ## Datos
 
+**Para compartir datos entre varios celulares, sigue [FIREBASE.md](FIREBASE.md).** Sin esa configuración, la app funciona en modo local:
+
 Todo se guarda en `localStorage` del navegador **de cada teléfono** (los datos no se comparten entre dispositivos). El botón **Reset** borra todo: productos, movimientos y ventas.
 
 ## Vistas
