@@ -7,7 +7,8 @@ import {
 import Modal from './Modal.jsx';
 import { useToast } from './Toast.jsx';
 import { Button } from './ui/button.jsx';
-import { Field, Input, NativeSelect } from './ui/input.jsx';
+import { Field, Input } from './ui/input.jsx';
+import { ChoiceChips } from './ui/chips.jsx';
 import { SegmentedTabs } from './ui/tabs.jsx';
 import { Separator } from './ui/separator.jsx';
 import { cn } from '../lib/utils.js';
@@ -167,11 +168,10 @@ function CheckoutModal({ open, onClose, cart, total }) {
             </Field>
           )}
           {pago > 0 && (
-            <Field label="Método de pago">
-              <NativeSelect value={metodo} onChange={(e) => setMetodo(e.target.value)}>
-                {METODOS_PAGO.map((m) => <option key={m}>{m}</option>)}
-              </NativeSelect>
-            </Field>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium">Método de pago</span>
+              <ChoiceChips value={metodo} onChange={setMetodo} options={METODOS_PAGO} />
+            </div>
           )}
           <div className="grid grid-cols-2 gap-2">
             <SummaryBox label="Paga ahora" value={money(pago)} />

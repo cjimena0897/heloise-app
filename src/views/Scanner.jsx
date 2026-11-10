@@ -177,7 +177,7 @@ export default function Scanner() {
               <StockBadge n={scanned.stockActual} />
             </div>
             <div className="-mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" />{scanned.ubicacion || '—'}</span>
+              {scanned.ubicacion && <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" />{scanned.ubicacion}</span>}
               <span>{scanned.categoria}</span>
               <span>Lista {money(precioLista(scanned))}</span>
             </div>

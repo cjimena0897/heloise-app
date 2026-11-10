@@ -9,7 +9,8 @@ import { useToast } from '../components/Toast.jsx';
 import { Button } from '../components/ui/button.jsx';
 import { Card } from '../components/ui/card.jsx';
 import { Badge } from '../components/ui/badge.jsx';
-import { Input, NativeSelect } from '../components/ui/input.jsx';
+import { Input } from '../components/ui/input.jsx';
+import { Chip, ChipRow, ChipSelect, ChoiceChips } from '../components/ui/chips.jsx';
 import { SegmentedTabs } from '../components/ui/tabs.jsx';
 import { PageHeader, EmptyState } from '../components/Page.jsx';
 import { SummaryBox } from '../components/Cart.jsx';
@@ -72,7 +73,7 @@ export default function Sales() {
   }, [sales, periodo, evento, q]);
 
   const resumen = useMemo(() => {
-    let vendido = 0, cobrado = 0, costo = 0, unidades = 0, descuentos = 0;
+    let vendido = 0, cobrado = 0, costo = 0, unidades = 0, descuentos = 0, costoCompleto = true;
     for (const s of filtered) {
       const st = saleStatus(s);
       vendido += s.total;
@@ -80,12 +81,13 @@ export default function Sales() {
       for (const i of s.items) {
         unidades += i.cantidad;
         costo += (i.costoUnit || 0) * i.cantidad;
+        if (!i.costoUnit) costoCompleto = false;
         descuentos += (i.precioLista - i.precioUnit) * i.cantidad;
       }
     }
     return {
       vendido: r2(vendido), cobrado: r2(cobrado), porCobrar: r2(vendido - cobrado),
-      ganancia: r2(vendido - costo), unidades, descuentos: r2(descuentos), ventas: filtered.length,
+      ganancia: r2(vendido - costo), unidades, descuentos: r2(descuentos), ventas: filtered.length, costoCompleto,
     };
   }, [filtered]);
 
@@ -117,29 +119,37 @@ export default function Sales() {
         </p>
       </div>
 
-      <div className="flex flex-col gap-2 print:hidden">
-        <div className="grid grid-cols-2 gap-2">
-          <NativeSelect value={periodo} onChange={(e) => setPeriodo(e.target.value)} aria-label="Periodo">
-            {PERIODOS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
-          </NativeSelect>
-          <NativeSelect value={evento} onChange={(e) => setEvento(e.target.value)} aria-label="Evento">
-            <option value="">Todos los eventos</option>
-            {eventos.map((e) => <option key={e} value={e}>{e}</option>)}
-          </NativeSelect>
-        </div>
+      <div className="flex flex-col gap-3 print:hidden">
         <div className="relative">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Buscar cliente o producto…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <Input className="pl-9" type="search" placeholder="Buscar cliente o producto" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
+        <ChipRow>
+          {PERIODOS.map((p) => (
+            <Chip key={p.key} active={periodo === p.key} onClick={() => setPeriodo(p.key)}>{p.label}</Chip>
+          ))}
+          {eventos.length > 0 && (
+            <ChipSelect value={evento} onChange={setEvento} options={eventos.map((e) => ({ value: e, label: e }))} allLabel="Evento" title="Evento / showroom" />
+          )}
+        </ChipRow>
       </div>
 
-      <Card className="grid grid-cols-2 gap-px overflow-hidden bg-border sm:grid-cols-3">
-        <Stat label="Vendido" value={money(resumen.vendido)} big />
-        <Stat label="Por cobrar" value={money(resumen.porCobrar)} tone="destructive" big />
-        <Stat label="Cobrado" value={money(resumen.cobrado)} tone="success" />
-        <Stat label="Ganancia aprox." value={money(resumen.ganancia)} />
-        <Stat label="Ventas · unidades" value={`${resumen.ventas} · ${resumen.unidades}`} />
-        <Stat label="Descuentos dados" value={money(resumen.descuentos)} tone="warning" />
+      <Card className="overflow-hidden">
+        <div className="flex items-end justify-between gap-3 p-4">
+          <div>
+            <div className="text-xs text-muted-foreground">Por cobrar</div>
+            <div className="text-3xl font-semibold tracking-tight text-destructive tabular-nums">{money(resumen.porCobrar)}</div>
+          </div>
+          <div className="text-right text-sm">
+            <div className="text-muted-foreground">Vendido <b className="text-foreground tabular-nums">{money(resumen.vendido)}</b></div>
+            <div className="text-muted-foreground">Cobrado <b className="text-success tabular-nums">{money(resumen.cobrado)}</b></div>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 border-t text-center">
+          <Stat label="Ventas" value={`${resumen.ventas}`} />
+          <Stat label="Ganancia" value={resumen.costoCompleto ? money(resumen.ganancia) : '—'} />
+          <Stat label="Descuentos" value={money(resumen.descuentos)} />
+        </div>
       </Card>
 
       <SegmentedTabs
@@ -170,11 +180,11 @@ export default function Sales() {
 
 const TONE = { success: 'text-success', destructive: 'text-destructive', warning: 'text-warning' };
 
-function Stat({ label, value, tone, big }) {
+function Stat({ label, value, tone }) {
   return (
-    <div className="flex flex-col gap-0.5 bg-card p-3.5">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className={cn('font-semibold tracking-tight tabular-nums', big ? 'text-xl' : 'text-base', TONE[tone])}>{value}</div>
+    <div className="flex flex-col gap-0.5 border-r px-2 py-2.5 last:border-r-0">
+      <div className="text-[11px] text-muted-foreground">{label}</div>
+      <div className={cn('text-sm font-semibold tabular-nums', TONE[tone])}>{value}</div>
     </div>
   );
 }
@@ -233,7 +243,7 @@ function DebtList({ sales, onOpen }) {
   }, [sales]);
 
   if (grupos.length === 0) {
-    return <EmptyState icon={Wallet} title="Nadie debe nada 🎉">Todas las ventas de este periodo están pagadas.</EmptyState>;
+    return <EmptyState icon={Wallet} title="Nadie debe nada">Todas las ventas de este periodo están pagadas.</EmptyState>;
   }
 
   return (
@@ -303,7 +313,7 @@ function ByProduct({ sales }) {
             <div className="min-w-0">
               <div className="truncate font-medium">{r.nombre}</div>
               <div className="text-xs text-muted-foreground">
-                {r.marca} · {r.cantidad} u. · ganancia {money(r.total - r.costo)}
+                {r.marca} · {r.cantidad} u.{r.costo > 0 && <> · ganancia {money(r.total - r.costo)}</>}
               </div>
             </div>
             <div className="font-semibold tabular-nums">{money(r.total)}</div>
@@ -377,8 +387,11 @@ function SaleDetail({ sale, onClose }) {
             {(sale.pagos || []).length === 0 && <div className="text-sm text-muted-foreground">Sin pagos (crédito).</div>}
             {(sale.pagos || []).map((p) => (
               <div key={p.id} className="flex items-center justify-between gap-2 border-b pb-2 text-sm last:border-b-0">
-                <span className="text-muted-foreground">{fmtDate(p.fecha)} · {p.metodo || '—'}{quien(p.vendedor)}</span>
-                <span className="flex items-center gap-1">
+                <span className="min-w-0 text-muted-foreground">
+                  <span className="block">{fmtDate(p.fecha)}</span>
+                  <span className="block truncate text-xs">{[p.metodo, p.vendedor && p.vendedor.split('@')[0]].filter(Boolean).join(' · ') || '—'}</span>
+                </span>
+                <span className="flex shrink-0 items-center gap-1 whitespace-nowrap">
                   <b className="tabular-nums">{money(p.monto)}</b>
                   <Button variant="ghost" size="icon-sm" aria-label="Borrar pago"
                     onClick={() => { if (confirm('¿Borrar este pago?')) deletePayment(sale.id, p.id); }}>
@@ -398,12 +411,8 @@ function SaleDetail({ sale, onClose }) {
                   <Button variant="secondary" size="sm" onClick={() => setMonto(r2(st.saldo / 2).toFixed(2))}>Mitad</Button>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Input type="number" inputMode="decimal" step="0.01" value={monto} onChange={(e) => setMonto(e.target.value)} aria-label="Monto" />
-                <NativeSelect value={metodo} onChange={(e) => setMetodo(e.target.value)} aria-label="Método">
-                  {METODOS_PAGO.map((m) => <option key={m}>{m}</option>)}
-                </NativeSelect>
-              </div>
+              <Input type="number" inputMode="decimal" step="0.01" value={monto} onChange={(e) => setMonto(e.target.value)} aria-label="Monto" />
+              <ChoiceChips value={metodo} onChange={setMetodo} options={METODOS_PAGO} />
               <Button onClick={abonar}>Registrar pago</Button>
             </div>
           )}

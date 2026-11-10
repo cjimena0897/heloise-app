@@ -60,6 +60,11 @@ export default function SellPanel({ product, onAdded }) {
 
   return (
     <div className="flex flex-col gap-4">
+      {lista <= 0 && (
+        <p className="rounded-lg bg-warning-soft p-3 text-sm text-warning">
+          Este producto no tiene precio de venta. Escribe el precio final abajo o edítalo en Inventario.
+        </p>
+      )}
       <div className="rounded-xl bg-muted/60 py-4 text-center">
         <div className={cn('text-sm text-muted-foreground line-through', pct <= 0 && 'invisible')}>{money(lista)}</div>
         <div className="text-4xl font-semibold tracking-tight tabular-nums" data-testid="precio-final">{money(unit)}</div>
