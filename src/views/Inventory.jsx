@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowDownToLine, ArrowUpFromLine, Package, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpFromLine, FileUp, ImagePlus, Package, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ProductPhoto } from '../components/ProductPhoto.jsx';
+import { PhotoEditor } from '../components/PhotoEditor.jsx';
 import { useProducts, addProduct, updateProduct, deleteProduct, suggestNextId, registerMovement, getProduct, money } from '../store.js';
 import Modal from '../components/Modal.jsx';
 import SellPanel from '../components/SellPanel.jsx';
@@ -52,6 +55,7 @@ export default function Inventory() {
   const [movement, setMovement] = useState(null); // { product, tipo }
   const [openId, setOpenId] = useState(null);
   const toast = useToast();
+  const navigate = useNavigate();
 
   const marcas = useMemo(() => {
     const c = {};
@@ -95,7 +99,12 @@ export default function Inventory() {
       <PageHeader
         title="Inventario"
         description={`${unidades} unidades disponibles · ${products.length} productos`}
-        action={<Button size="sm" onClick={() => setAddOpen(true)}><Plus /> Nuevo</Button>}
+        action={
+          <>
+            <Button size="sm" variant="outline" onClick={() => navigate('/importar')}><FileUp /> Importar</Button>
+            <Button size="sm" onClick={() => setAddOpen(true)}><Plus /> Nuevo</Button>
+          </>
+        }
       />
 
       <div className="relative">
@@ -133,10 +142,7 @@ export default function Inventory() {
         description={open ? `${open.codigo || `#${open.id}`} · ${open.marca}${open.ubicacion ? ` · ${open.ubicacion}` : ''}` : undefined}>
         {open && (
           <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-2">
-              <StockBadge n={open.stockActual} />
-              <Badge variant="outline">{open.categoria}</Badge>
-            </div>
+            <ProductHero p={open} />
             {open.stockActual > 0 ? (
               <SellPanel product={open} onAdded={() => { toast('Agregado a la venta'); setOpenId(null); }} />
             ) : (
@@ -214,19 +220,12 @@ export default function Inventory() {
   );
 }
 
-function initials(marca) {
-  const w = String(marca || '?').trim().split(/\s+/);
-  return (w.length > 1 ? w[0][0] + w[1][0] : w[0].slice(0, 2)).toUpperCase();
-}
-
 function ProductRow({ p, onClick }) {
   const agotado = p.stockActual <= 0;
   return (
     <button data-product={p.id} onClick={onClick}
       className="flex w-full items-center gap-3 border-b px-3 py-3 text-left transition-colors last:border-b-0 hover:bg-accent/60 active:bg-accent">
-      <div className={cn('grid size-11 shrink-0 place-items-center rounded-lg bg-muted text-xs font-semibold text-muted-foreground', agotado && 'opacity-50')}>
-        {initials(p.marca)}
-      </div>
+      <ProductPhoto p={p} className="size-12" dim={agotado} />
       <div className={cn('min-w-0 flex-1', agotado && 'opacity-60')}>
         <div className="line-clamp-2 text-sm leading-snug font-medium" data-testid="producto-nombre">{p.producto}</div>
         <div className="mt-0.5 truncate text-xs text-muted-foreground">
@@ -240,6 +239,36 @@ function ProductRow({ p, onClick }) {
         <StockBadge n={p.stockActual} />
       </div>
     </button>
+  );
+}
+
+/** Foto grande + estado; si no hay foto, invita a agregarla en un toque. */
+function ProductHero({ p }) {
+  const toast = useToast();
+  const [editing, setEditing] = useState(false);
+  const save = (foto) => {
+    try { updateProduct(p.id, { foto }); toast(foto ? 'Foto guardada' : 'Foto quitada'); setEditing(false); }
+    catch (e) { alert(e.message); }
+  };
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-start gap-3">
+        <button type="button" onClick={() => setEditing((v) => !v)} className="shrink-0" aria-label={p.foto ? 'Cambiar foto' : 'Agregar foto'}>
+          {p.foto ? (
+            <ProductPhoto p={p} className="size-24 rounded-xl border" />
+          ) : (
+            <div className="grid size-24 place-items-center rounded-xl border border-dashed text-muted-foreground">
+              <div className="flex flex-col items-center gap-1 text-xs"><ImagePlus className="size-5" />Agregar foto</div>
+            </div>
+          )}
+        </button>
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <StockBadge n={p.stockActual} />
+          <Badge variant="outline">{p.categoria}</Badge>
+        </div>
+      </div>
+      {editing && <PhotoEditor product={p} value={p.foto} onChange={save} size="hidden" />}
+    </div>
   );
 }
 
@@ -269,6 +298,10 @@ function AddOrEditModal({ open, product, initial, onClose, onSave, onDelete }) {
         <Field label="Producto">
           <Input value={form.producto} onChange={set('producto')} />
         </Field>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium">Foto de referencia</span>
+          <PhotoEditor product={form} value={form.foto || ''} onChange={(foto) => setForm((f) => ({ ...f, foto }))} />
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Marca">
             <Input value={form.marca} onChange={set('marca')} />
@@ -366,6 +399,7 @@ function emptyForm() {
     costoPEN: 0,
     pVentaPEN: 0,
     pOfertaPEN: 0,
+    foto: '',
   };
 }
 

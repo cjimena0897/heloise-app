@@ -20,8 +20,9 @@ export function r2(n) {
   return Math.round((Number(n) || 0) * 100) / 100;
 }
 
+const moneyFmt = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export function money(n) {
-  return `S/ ${r2(n).toFixed(2)}`;
+  return `S/ ${moneyFmt.format(r2(n))}`;
 }
 
 export function normCode(s) {
@@ -209,6 +210,7 @@ function productData(p) {
     entradas: Number(p.entradas) || 0,
     salidas: Number(p.salidas) || 0,
     ubicacion: p.ubicacion || '',
+    foto: p.foto || '',
     costoPEN: Number(p.costoPEN) || 0,
     pVentaPEN: Number(p.pVentaPEN) || 0,
     pOfertaPEN: Number(p.pOfertaPEN) || 0,
@@ -253,7 +255,7 @@ export function addProduct(input) {
   return getProduct(id);
 }
 
-const EDITABLE = ['codigo', 'categoria', 'marca', 'producto', 'cantInicial', 'ubicacion', 'costoPEN', 'pVentaPEN', 'pOfertaPEN'];
+const EDITABLE = ['codigo', 'categoria', 'marca', 'producto', 'cantInicial', 'ubicacion', 'costoPEN', 'pVentaPEN', 'pOfertaPEN', 'foto'];
 
 export function updateProduct(id, patch) {
   if ('codigo' in patch) assertCodeFree(patch.codigo, id);
@@ -480,6 +482,64 @@ export function deleteSale(saleId) {
   for (const t of cache.movimientos) if (t.saleId === saleId) ops.push({ t: 'del', col: 'movimientos', id: t.id });
   ops.push({ t: 'del', col: 'ventas', id: saleId });
   commit(ops);
+}
+
+// ---------- importar pedido ----------
+
+/**
+ * Carga un pedido: crea los productos nuevos y suma unidades a los que ya existen.
+ * items: salida de buildPreview (solo estado 'nuevo' o 'existe').
+ * opts: { lote, actualizarPrecios }
+ */
+export function importInventory(items, { lote = '', actualizarPrecios = false } = {}) {
+  const fecha = new Date().toISOString();
+  const quien = vendedor();
+  const ops = [];
+  let nuevos = 0, existentes = 0, unidades = 0, i = 0;
+  for (const it of items) {
+    if (it.estado !== 'nuevo' && it.estado !== 'existe') continue;
+    const qty = Number(it.cantidad) || 0;
+    let id;
+    if (it.estado === 'nuevo') {
+      id = it.codigo;
+      if (getProduct(id) || findByCode(id)) continue;
+      ops.push({
+        t: 'set', col: 'productos', id,
+        data: productData({
+          codigo: it.codigo, producto: it.producto, marca: it.marca, categoria: it.categoria || 'Otros',
+          ubicacion: it.ubicacion, cantInicial: 0, entradas: qty, salidas: 0,
+          costoPEN: it.costo, pVentaPEN: it.venta, pOfertaPEN: it.oferta, foto: it.foto,
+        }),
+      });
+      nuevos++;
+    } else {
+      id = it.existente.id;
+      const data = {};
+      if (actualizarPrecios) {
+        if (it.costo != null) data.costoPEN = it.costo;
+        if (it.venta != null) data.pVentaPEN = it.venta;
+        if (it.oferta != null) data.pOfertaPEN = it.oferta;
+      }
+      if (it.foto && !it.existente.foto) data.foto = it.foto;
+      if (qty > 0 || Object.keys(data).length) {
+        ops.push({ t: 'update', col: 'productos', id, data, inc: qty > 0 ? { entradas: qty } : undefined });
+      }
+      existentes++;
+    }
+    if (qty > 0) {
+      const mid = `${uid()}-${i++}`;
+      ops.push({
+        t: 'set', col: 'movimientos', id: mid,
+        data: {
+          id: mid, fecha, productId: id, productoNombre: it.producto || it.existente?.producto, marca: it.marca || it.existente?.marca || '',
+          tipo: 'entrada', cantidad: qty, precio: it.costo ?? null, lote: lote.trim(), vendedor: quien,
+        },
+      });
+      unidades += qty;
+    }
+  }
+  commit(ops);
+  return { nuevos, existentes, unidades };
 }
 
 // ---------- migración local → nube ----------

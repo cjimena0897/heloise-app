@@ -2,12 +2,12 @@ import { cn } from '../lib/utils.js';
 
 export function PageHeader({ title, description, action, className }) {
   return (
-    <div className={cn('flex items-end justify-between gap-3 print:hidden', className)}>
-      <div className="min-w-0">
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        {description && <p className="text-sm text-muted-foreground">{description}</p>}
+    <div className={cn('flex flex-col gap-1 print:hidden', className)}>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="min-w-0 truncate text-2xl font-semibold tracking-tight">{title}</h1>
+        {action && <div className="flex shrink-0 gap-2">{action}</div>}
       </div>
-      {action && <div className="flex shrink-0 gap-2">{action}</div>}
+      {description && <p className="text-sm text-muted-foreground">{description}</p>}
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { ArrowDownToLine, ArrowUpFromLine, Barcode, Camera, CameraOff, Link2, Ma
 import Modal from '../components/Modal.jsx';
 import SellPanel from '../components/SellPanel.jsx';
 import { ProductFormModal, ProductHeading, StockBadge } from './Inventory.jsx';
+import { ProductPhoto } from '../components/ProductPhoto.jsx';
 import { useToast } from '../components/Toast.jsx';
 import { Button } from '../components/ui/button.jsx';
 import { Card, CardContent } from '../components/ui/card.jsx';
@@ -172,8 +173,9 @@ export default function Scanner() {
       {scanned && (
         <Card>
           <CardContent className="flex flex-col gap-4 p-5">
-            <div className="flex items-start justify-between gap-3">
-              <ProductHeading p={scanned} />
+            <div className="flex items-start gap-3">
+              <ProductPhoto p={scanned} className="size-16 rounded-xl border" />
+              <div className="min-w-0 flex-1"><ProductHeading p={scanned} /></div>
               <StockBadge n={scanned.stockActual} />
             </div>
             <div className="-mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
