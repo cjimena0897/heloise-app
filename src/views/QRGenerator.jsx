@@ -13,7 +13,8 @@ export default function QRGenerator() {
     return products.filter((p) =>
       p.producto.toLowerCase().includes(t) ||
       p.marca.toLowerCase().includes(t) ||
-      p.id.includes(t)
+      p.id.toLowerCase().includes(t) ||
+      (p.codigo || '').toLowerCase().includes(t)
     );
   }, [products, q]);
 
@@ -99,9 +100,9 @@ export default function QRGenerator() {
       <div className="qr-grid">
         {toPrint.map((p) => (
           <div key={p.id} className="qr-card">
-            <div className="qr-id">#{p.id}</div>
+            <div className="qr-id">{p.codigo || `#${p.id}`}</div>
             <QRCodeSVG
-              value={p.id}
+              value={p.codigo || p.id}
               size={128}
               level="M"
               includeMargin={false}

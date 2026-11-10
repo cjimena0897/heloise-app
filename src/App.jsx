@@ -4,6 +4,8 @@ import Inventory from './views/Inventory.jsx';
 import Scanner from './views/Scanner.jsx';
 import Transactions from './views/Transactions.jsx';
 import QRGenerator from './views/QRGenerator.jsx';
+import Sales from './views/Sales.jsx';
+import CartBar from './components/Cart.jsx';
 import { ensureSeed, useReset } from './store.js';
 
 export default function App() {
@@ -16,7 +18,8 @@ export default function App() {
 
   const titles = {
     '/inventario': 'Inventario',
-    '/escaner': 'Escáner QR',
+    '/escaner': 'Escáner',
+    '/ventas': 'Ventas y cobranza',
     '/transacciones': 'Transacciones',
     '/qr': 'Códigos QR',
   };
@@ -42,11 +45,14 @@ export default function App() {
           <Route path="/" element={<Navigate to="/inventario" replace />} />
           <Route path="/inventario" element={<Inventory />} />
           <Route path="/escaner" element={<Scanner />} />
+          <Route path="/ventas" element={<Sales />} />
           <Route path="/transacciones" element={<Transactions />} />
           <Route path="/qr" element={<QRGenerator />} />
           <Route path="*" element={<Navigate to="/inventario" replace />} />
         </Routes>
       </main>
+
+      <CartBar />
 
       <nav className="bottom-nav no-print">
         <NavLink to="/inventario" className={({ isActive }) => isActive ? 'active' : ''}>
@@ -56,6 +62,10 @@ export default function App() {
         <NavLink to="/escaner" className={({ isActive }) => isActive ? 'active' : ''}>
           <span className="ico">📷</span>
           <span>Escáner</span>
+        </NavLink>
+        <NavLink to="/ventas" className={({ isActive }) => isActive ? 'active' : ''}>
+          <span className="ico">💰</span>
+          <span>Ventas</span>
         </NavLink>
         <NavLink to="/transacciones" className={({ isActive }) => isActive ? 'active' : ''}>
           <span className="ico">🧾</span>

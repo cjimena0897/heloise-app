@@ -28,12 +28,14 @@ npm run build
 
 ## Datos
 
-Todo se guarda en `localStorage` del navegador. El botón **Reset** (esquina superior) restaura los datos de ejemplo.
+Todo se guarda en `localStorage` del navegador **de cada teléfono** (los datos no se comparten entre dispositivos). El botón **Reset** borra todo: productos, movimientos y ventas.
 
 ## Vistas
 
 - **Inventario** — listado, búsqueda, filtros por marca/categoría, alta/edición/eliminación de productos, entradas y salidas rápidas.
-- **Escáner QR** — usa la cámara para leer el QR de un producto (el QR codifica el `id`).
+- **Escáner** — lee la etiqueta del producto con la cámara: códigos de barras alfanuméricos (Code 128, Code 39, EAN, UPC, ITF, Codabar) o QR. Busca por **código de etiqueta** o por `id`. Muestra el precio con descuentos rápidos (10/15/20/25/30 %, oferta, % libre o precio manual) y permite agregarlo a la venta. Si el código no existe, ofrece asignarlo a un producto o crear uno nuevo.
+- **Venta en curso (carrito)** — barra amarilla flotante. Al cobrar se registra cliente, celular, evento/showroom y pago: completo, mitad, crédito u otro monto (Efectivo, Yape, Plin, Transferencia, Tarjeta). Descuenta el stock automáticamente.
+- **Ventas** — informe con vendido, cobrado, por cobrar, ganancia aprox. y descuentos dados; filtros por periodo y evento. Pestañas *Ventas*, *Por cobrar* (agrupado por cliente, con recordatorio por WhatsApp) y *Por producto*. Registro de abonos, anulación de ventas (devuelve el stock), exportación a Excel (CSV) e impresión.
 - **Movimientos** — historial completo con totales y exportación CSV.
 - **QR** — genera códigos QR imprimibles para los productos seleccionados.
 
