@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowDownToLine, ArrowUpFromLine, MapPin, Package, Pencil, Plus, Search, ShoppingBag, Trash2 } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpFromLine, Package, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { useProducts, addProduct, updateProduct, deleteProduct, suggestNextId, registerMovement, getProduct, money } from '../store.js';
 import Modal from '../components/Modal.jsx';
 import SellPanel from '../components/SellPanel.jsx';
@@ -7,8 +7,11 @@ import { useToast } from '../components/Toast.jsx';
 import { Button } from '../components/ui/button.jsx';
 import { Card } from '../components/ui/card.jsx';
 import { Badge } from '../components/ui/badge.jsx';
-import { Field, Input, NativeSelect } from '../components/ui/input.jsx';
+import { Field, Input } from '../components/ui/input.jsx';
 import { PageHeader, EmptyState } from '../components/Page.jsx';
+import { SegmentedTabs } from '../components/ui/tabs.jsx';
+import { Chip, ChipRow, ChipSelect } from '../components/ui/chips.jsx';
+import { cn } from '../lib/utils.js';
 
 export function StockBadge({ n, className }) {
   const variant = n <= 0 ? 'destructive' : n <= 2 ? 'warning' : 'success';
@@ -28,21 +31,37 @@ export function ProductHeading({ p }) {
   );
 }
 
+const STOCK_TABS = [
+  { value: 'disponibles', label: 'Disponibles' },
+  { value: 'agotados', label: 'Agotados' },
+  { value: 'todos', label: 'Todos' },
+];
+
+const byMarcaNombre = (a, b) =>
+  a.marca.localeCompare(b.marca, 'es', { sensitivity: 'base' }) ||
+  a.producto.localeCompare(b.producto, 'es', { sensitivity: 'base' });
+
 export default function Inventory() {
   const products = useProducts();
   const [q, setQ] = useState('');
+  const [stockTab, setStockTab] = useState('disponibles');
   const [filterMarca, setFilterMarca] = useState('');
   const [filterCategoria, setFilterCategoria] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [movement, setMovement] = useState(null); // { product, tipo }
-  const [selling, setSelling] = useState(null); // product
+  const [openId, setOpenId] = useState(null);
   const toast = useToast();
 
-  const marcas = useMemo(() => Array.from(new Set(products.map((p) => p.marca))).sort(), [products]);
-  const categorias = useMemo(() => Array.from(new Set(products.map((p) => p.categoria))).sort(), [products]);
+  const marcas = useMemo(() => {
+    const c = {};
+    for (const p of products) c[p.marca] = (c[p.marca] || 0) + 1;
+    return Object.keys(c).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' })).map((m) => ({ value: m, label: m, hint: c[m] }));
+  }, [products]);
+  const categorias = useMemo(() => Array.from(new Set(products.map((p) => p.categoria).filter(Boolean))).sort(), [products]);
 
-  const filtered = useMemo(() => {
+  // Filtros de búsqueda/marca/categoría (sin el de stock), para poder contar por pestaña.
+  const base = useMemo(() => {
     const t = q.trim().toLowerCase();
     return products.filter((p) => {
       if (filterMarca && p.marca !== filterMarca) return false;
@@ -51,81 +70,92 @@ export default function Inventory() {
       return (
         p.producto.toLowerCase().includes(t) ||
         p.marca.toLowerCase().includes(t) ||
-        p.categoria.toLowerCase().includes(t) ||
+        (p.categoria || '').toLowerCase().includes(t) ||
         (p.codigo || '').toLowerCase().includes(t) ||
         p.id.toLowerCase().includes(t)
       );
     });
   }, [products, q, filterMarca, filterCategoria]);
 
+  const counts = useMemo(() => {
+    const disponibles = base.filter((p) => p.stockActual > 0).length;
+    return { disponibles, agotados: base.length - disponibles, todos: base.length };
+  }, [base]);
+
+  const filtered = useMemo(() => {
+    const list = stockTab === 'todos' ? base : base.filter((p) => (stockTab === 'agotados' ? p.stockActual <= 0 : p.stockActual > 0));
+    return [...list].sort(byMarcaNombre);
+  }, [base, stockTab]);
+
+  const unidades = useMemo(() => products.reduce((s, p) => s + Math.max(0, p.stockActual), 0), [products]);
+  const open = openId ? getProduct(openId) : null;
+
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
         title="Inventario"
-        description={`${filtered.length} de ${products.length} productos`}
+        description={`${unidades} unidades disponibles · ${products.length} productos`}
         action={<Button size="sm" onClick={() => setAddOpen(true)}><Plus /> Nuevo</Button>}
       />
 
-      <div className="flex flex-col gap-2">
-        <div className="relative">
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Buscar producto, marca, código…" value={q} onChange={(e) => setQ(e.target.value)} />
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <NativeSelect value={filterMarca} onChange={(e) => setFilterMarca(e.target.value)}>
-            <option value="">Todas las marcas</option>
-            {marcas.map((m) => <option key={m} value={m}>{m}</option>)}
-          </NativeSelect>
-          <NativeSelect value={filterCategoria} onChange={(e) => setFilterCategoria(e.target.value)}>
-            <option value="">Todas las categorías</option>
-            {categorias.map((c) => <option key={c} value={c}>{c}</option>)}
-          </NativeSelect>
-        </div>
+      <div className="relative">
+        <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input className="pl-9" type="search" placeholder="Buscar producto, marca o código" value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
 
-      {filtered.length === 0 && (
-        <EmptyState icon={Package} title={products.length ? 'Sin coincidencias' : 'Aún no hay productos'}>
+      <SegmentedTabs
+        value={stockTab}
+        onChange={setStockTab}
+        options={STOCK_TABS.map((t) => ({ value: t.value, label: <>{t.label} <span className="text-xs tabular-nums opacity-60">{counts[t.value]}</span></> }))}
+      />
+
+      <ChipRow>
+        <ChipSelect value={filterMarca} onChange={setFilterMarca} options={marcas} allLabel="Marca" title="Marca" />
+        <Chip active={!filterCategoria} onClick={() => setFilterCategoria('')}>Todas</Chip>
+        {categorias.map((c) => (
+          <Chip key={c} active={filterCategoria === c} onClick={() => setFilterCategoria(filterCategoria === c ? '' : c)}>{c}</Chip>
+        ))}
+      </ChipRow>
+
+      {filtered.length === 0 ? (
+        <EmptyState icon={Package} title={products.length ? (stockTab === 'agotados' && !q ? 'No hay agotados' : 'Sin coincidencias') : 'Aún no hay productos'}>
           {products.length ? 'Prueba con otra búsqueda o filtro.' : <>Toca <b>Nuevo</b> o escanea una etiqueta para agregar.</>}
         </EmptyState>
+      ) : (
+        <Card className="overflow-hidden">
+          {filtered.map((p) => (
+            <ProductRow key={p.id} p={p} onClick={() => setOpenId(p.id)} />
+          ))}
+        </Card>
       )}
 
-      <div className="flex flex-col gap-3">
-        {filtered.map((p) => (
-          <Card key={p.id} className="p-4" data-product={p.id}>
-            <div className="flex items-start justify-between gap-3">
-              <ProductHeading p={p} />
-              <StockBadge n={p.stockActual} className="mt-0.5" />
+      <Modal open={!!open} onClose={() => setOpenId(null)} title={open?.producto || ''}
+        description={open ? `${open.codigo || `#${open.id}`} · ${open.marca}${open.ubicacion ? ` · ${open.ubicacion}` : ''}` : undefined}>
+        {open && (
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-2">
+              <StockBadge n={open.stockActual} />
+              <Badge variant="outline">{open.categoria}</Badge>
             </div>
-            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" />{p.ubicacion || '—'}</span>
-              <span>{p.categoria}</span>
-              <span className="font-medium text-foreground tabular-nums">{money(p.pVentaPEN)}</span>
-            </div>
-            <div className="mt-3 flex gap-2">
-              <Button variant="brand" size="sm" onClick={() => setSelling(p)} disabled={p.stockActual <= 0}>
-                <ShoppingBag /> Vender
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setMovement({ product: p, tipo: 'entrada' })}>
+            {open.stockActual > 0 ? (
+              <SellPanel product={open} onAdded={() => { toast('Agregado a la venta'); setOpenId(null); }} />
+            ) : (
+              <p className="rounded-lg bg-muted/60 p-3 text-sm text-muted-foreground">
+                Sin stock. Registra una <b className="text-foreground">entrada</b> cuando llegue mercadería.
+              </p>
+            )}
+            <div className="grid grid-cols-3 gap-2">
+              <Button variant="outline" size="sm" onClick={() => { setMovement({ product: open, tipo: 'entrada' }); setOpenId(null); }}>
                 <ArrowDownToLine /> Entrada
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setMovement({ product: p, tipo: 'salida' })}>
+              <Button variant="outline" size="sm" onClick={() => { setMovement({ product: open, tipo: 'salida' }); setOpenId(null); }} disabled={open.stockActual <= 0}>
                 <ArrowUpFromLine /> Salida
               </Button>
-              <Button variant="ghost" size="icon-sm" className="ml-auto" onClick={() => setEditing(p)} aria-label="Editar">
-                <Pencil />
+              <Button variant="outline" size="sm" onClick={() => { setEditing(open); setOpenId(null); }}>
+                <Pencil /> Editar
               </Button>
             </div>
-          </Card>
-        ))}
-      </div>
-
-      <Modal open={!!selling} onClose={() => setSelling(null)} title={selling?.producto || 'Vender'}
-        description={selling ? `${selling.codigo || `#${selling.id}`} · ${selling.marca} · ${selling.stockActual} en stock` : undefined}>
-        {selling && (
-          <SellPanel
-            product={getProduct(selling.id) || selling}
-            onAdded={() => { toast('Agregado a la venta'); setSelling(null); }}
-          />
+          </div>
         )}
       </Modal>
       <AddOrEditModal
@@ -181,6 +211,35 @@ export default function Inventory() {
         }}
       />
     </div>
+  );
+}
+
+function initials(marca) {
+  const w = String(marca || '?').trim().split(/\s+/);
+  return (w.length > 1 ? w[0][0] + w[1][0] : w[0].slice(0, 2)).toUpperCase();
+}
+
+function ProductRow({ p, onClick }) {
+  const agotado = p.stockActual <= 0;
+  return (
+    <button data-product={p.id} onClick={onClick}
+      className="flex w-full items-center gap-3 border-b px-3 py-3 text-left transition-colors last:border-b-0 hover:bg-accent/60 active:bg-accent">
+      <div className={cn('grid size-11 shrink-0 place-items-center rounded-lg bg-muted text-xs font-semibold text-muted-foreground', agotado && 'opacity-50')}>
+        {initials(p.marca)}
+      </div>
+      <div className={cn('min-w-0 flex-1', agotado && 'opacity-60')}>
+        <div className="line-clamp-2 text-sm leading-snug font-medium" data-testid="producto-nombre">{p.producto}</div>
+        <div className="mt-0.5 truncate text-xs text-muted-foreground">
+          <span className="font-mono">{p.codigo || `#${p.id}`}</span> · {p.marca}
+        </div>
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-1">
+        {p.pVentaPEN > 0
+          ? <span className="text-sm font-semibold tabular-nums">{money(p.pVentaPEN)}</span>
+          : <span className="text-xs font-medium text-warning">Sin precio</span>}
+        <StockBadge n={p.stockActual} />
+      </div>
+    </button>
   );
 }
 

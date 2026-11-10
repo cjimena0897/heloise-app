@@ -44,7 +44,6 @@ export default function App() {
     if (!status.loaded) return <Splash text="Sincronizando datos…" loading />;
   }
 
-  const current = NAV.find((n) => n.to === location.pathname);
 
   return (
     <div className="flex min-h-dvh flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] has-[[data-cart-bar]]:pb-[calc(9rem+env(safe-area-inset-bottom))] print:p-0">
@@ -53,8 +52,8 @@ export default function App() {
           <div className="flex min-w-0 items-center gap-3">
             <Logo />
             <div className="min-w-0 leading-tight">
-              <div className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">AJVC · K-beauty</div>
-              <div className="truncate font-semibold">{current?.title || 'AJVC'}</div>
+              <div className="font-semibold tracking-tight">AJVC</div>
+              <div className="text-xs text-muted-foreground">K-beauty</div>
             </div>
           </div>
           {status.mode === 'local' ? (
