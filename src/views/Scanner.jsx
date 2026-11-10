@@ -4,10 +4,15 @@ import {
   addProduct, assignCode, findByCode, getProduct, money, normCode, precioLista, registerMovement,
   useProducts,
 } from '../store.js';
+import { ArrowDownToLine, ArrowUpFromLine, Barcode, Camera, CameraOff, Link2, MapPin, Plus, ScanLine, Search, TriangleAlert } from 'lucide-react';
 import Modal from '../components/Modal.jsx';
 import SellPanel from '../components/SellPanel.jsx';
-import { ProductFormModal } from './Inventory.jsx';
+import { ProductFormModal, ProductHeading, StockBadge } from './Inventory.jsx';
 import { useToast } from '../components/Toast.jsx';
+import { Button } from '../components/ui/button.jsx';
+import { Card, CardContent } from '../components/ui/card.jsx';
+import { Field, Input } from '../components/ui/input.jsx';
+import { PageHeader } from '../components/Page.jsx';
 
 const READER_ID = 'qr-reader';
 
@@ -16,12 +21,6 @@ const FORMATS = [
   F.QR_CODE, F.CODE_128, F.CODE_39, F.CODE_93, F.EAN_13, F.EAN_8,
   F.UPC_A, F.UPC_E, F.ITF, F.CODABAR, F.DATA_MATRIX,
 ];
-
-function stockClass(n) {
-  if (n <= 0) return 'red';
-  if (n <= 2) return 'yellow';
-  return 'green';
-}
 
 export default function Scanner() {
   const [scanned, setScanned] = useState(null); // product
@@ -120,88 +119,103 @@ export default function Scanner() {
   const idle = !running && !starting && !scanned && !unknownCode;
 
   return (
-    <div className="page">
-      <h2>Escáner</h2>
+    <div className="flex flex-col gap-4">
+      <PageHeader title="Escáner" description="Código de barras o QR de la etiqueta" />
 
       {idle && (
-        <div className="card">
-          <p style={{ marginTop: 0, color: 'var(--muted)' }}>
-            Escanea la etiqueta (código de barras o QR) del producto. También puedes escribir el código.
-          </p>
-          <button className="btn full" onClick={start}>📷 Iniciar cámara</button>
-          {error && <div style={{ color: 'var(--danger)', marginTop: 10, fontSize: 13 }}>{error}</div>}
+        <Card>
+          <CardContent className="flex flex-col gap-5 p-5">
+            <div className="flex flex-col items-center gap-3 py-4 text-center">
+              <div className="grid size-16 place-items-center rounded-2xl bg-brand/30 dark:bg-brand/15">
+                <ScanLine className="size-8" />
+              </div>
+              <p className="max-w-xs text-sm text-muted-foreground">
+                Apunta la cámara a la etiqueta del producto para ver su precio y aplicar descuentos.
+              </p>
+            </div>
+            <Button size="lg" onClick={start}><Camera /> Iniciar cámara</Button>
+            {error && (
+              <p className="flex items-start gap-2 text-sm text-destructive">
+                <TriangleAlert className="mt-0.5 size-4 shrink-0" /> {error}
+              </p>
+            )}
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <div className="h-px flex-1 bg-border" /> o escribe el código <div className="h-px flex-1 bg-border" />
+            </div>
+            <form onSubmit={tryManual} className="flex gap-2">
+              <div className="relative flex-1">
+                <Barcode className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  className="pl-9 font-mono uppercase placeholder:normal-case placeholder:font-sans"
+                  placeholder="Ej. AJ0012"
+                  value={manualId}
+                  onChange={(e) => setManualId(e.target.value)}
+                  autoCapitalize="characters"
+                  autoComplete="off"
+                  aria-label="Código"
+                />
+              </div>
+              <Button type="submit" variant="secondary"><Search /> Buscar</Button>
+            </form>
+          </CardContent>
+        </Card>
+      )}
 
-          <form onSubmit={tryManual} style={{ marginTop: 14 }}>
-            <label className="field">
-              <span>O ingresa el código</span>
-              <input
-                className="input"
-                placeholder="Ej. AJ0012"
-                value={manualId}
-                onChange={(e) => setManualId(e.target.value)}
-                autoCapitalize="characters"
-                autoComplete="off"
-              />
-            </label>
-            <button className="btn full secondary" type="submit">Buscar producto</button>
-          </form>
+      <div className={running || starting ? 'flex flex-col gap-2' : 'hidden'}>
+        <div className="relative overflow-hidden rounded-2xl bg-black shadow-lg">
+          <div id={READER_ID} />
+          {starting && <div className="grid h-64 place-items-center text-sm text-white/70">Abriendo cámara…</div>}
         </div>
-      )}
-
-      <div className="scanner-box" style={{ display: running || starting ? 'block' : 'none' }}>
-        <div id={READER_ID} />
+        <Button variant="outline" onClick={stop}><CameraOff /> Detener cámara</Button>
       </div>
-      {running && (
-        <button className="btn full secondary" onClick={stop} style={{ marginTop: 8 }}>
-          Detener cámara
-        </button>
-      )}
 
       {scanned && (
-        <div className="card product">
-          <div className="top">
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="marca">
-                {scanned.codigo ? scanned.codigo : `#${scanned.id}`} · {scanned.marca}
-              </div>
-              <div className="nombre">{scanned.producto}</div>
-              <div className="meta">
-                <span>📍 {scanned.ubicacion || '—'}</span>
-                <span className="dot">{scanned.categoria}</span>
-                <span className="dot">Lista {money(precioLista(scanned))}</span>
-              </div>
+        <Card>
+          <CardContent className="flex flex-col gap-4 p-5">
+            <div className="flex items-start justify-between gap-3">
+              <ProductHeading p={scanned} />
+              <StockBadge n={scanned.stockActual} />
             </div>
-            <span className={`stock ${stockClass(scanned.stockActual)}`}>{scanned.stockActual} u.</span>
-          </div>
+            <div className="-mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" />{scanned.ubicacion || '—'}</span>
+              <span>{scanned.categoria}</span>
+              <span>Lista {money(precioLista(scanned))}</span>
+            </div>
 
-          <SellPanel
-            product={scanned}
-            onAdded={() => {
-              toast('Agregado a la venta');
-              start();
-            }}
-          />
+            <SellPanel
+              product={scanned}
+              onAdded={() => {
+                toast('Agregado a la venta');
+                start();
+              }}
+            />
 
-          <div className="row" style={{ marginTop: 10, gap: 8 }}>
-            <button className="btn small ghost" style={{ flex: 1 }} onClick={start}>📷 Escanear otro</button>
-            <button className="btn small ghost" onClick={() => setMovement({ tipo: 'entrada' })}>＋ Entrada</button>
-            <button className="btn small ghost" onClick={() => setMovement({ tipo: 'salida' })}>− Salida</button>
-          </div>
-        </div>
+            <div className="grid grid-cols-3 gap-2">
+              <Button variant="outline" size="sm" onClick={start}><Camera /> Otro</Button>
+              <Button variant="ghost" size="sm" onClick={() => setMovement({ tipo: 'entrada' })}><ArrowDownToLine /> Entrada</Button>
+              <Button variant="ghost" size="sm" onClick={() => setMovement({ tipo: 'salida' })}><ArrowUpFromLine /> Salida</Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {unknownCode && (
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>Código no registrado</h3>
-          <p>
-            El código <b className="mono">{unknownCode}</b> no está asignado a ningún producto.
-          </p>
-          <button className="btn full" onClick={() => setAssignOpen(true)}>Asignar a un producto existente</button>
-          <button className="btn full secondary" style={{ marginTop: 8 }} onClick={() => setCreateOpen(true)}>
-            ＋ Crear producto con este código
-          </button>
-          <button className="btn full ghost small" style={{ marginTop: 8 }} onClick={start}>Escanear de nuevo</button>
-        </div>
+        <Card>
+          <CardContent className="flex flex-col gap-4 p-5">
+            <div className="flex flex-col items-center gap-2 py-2 text-center">
+              <div className="grid size-12 place-items-center rounded-full bg-warning-soft">
+                <TriangleAlert className="size-6 text-warning" />
+              </div>
+              <div className="font-semibold">Código no registrado</div>
+              <p className="text-sm text-muted-foreground">
+                <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-foreground">{unknownCode}</span> no está asignado a ningún producto.
+              </p>
+            </div>
+            <Button size="lg" onClick={() => setAssignOpen(true)}><Link2 /> Asignar a un producto existente</Button>
+            <Button variant="outline" size="lg" onClick={() => setCreateOpen(true)}><Plus /> Crear producto con este código</Button>
+            <Button variant="ghost" onClick={start}><Camera /> Escanear de nuevo</Button>
+          </CardContent>
+        </Card>
       )}
 
       <AssignModal
@@ -264,8 +278,6 @@ function AssignModal({ open, code, onClose, onAssigned }) {
       .sort((a, b) => (a.codigo ? 1 : 0) - (b.codigo ? 1 : 0));
   }, [products, q]);
 
-  if (!open) return null;
-
   function pick(p) {
     if (p.codigo && !confirm(`"${p.producto}" ya tiene el código ${p.codigo}. ¿Reemplazarlo por ${code}?`)) return;
     try {
@@ -277,18 +289,26 @@ function AssignModal({ open, code, onClose, onAssigned }) {
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={`Asignar ${code}`}>
-      <input className="input" placeholder="Buscar producto…" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 10 }} />
-      <div className="card" style={{ padding: 0 }}>
-        {list.map((p) => (
-          <button key={p.id} className="list-btn" onClick={() => pick(p)}>
-            <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 700 }}>
-              #{p.id} · {p.marca} {p.codigo ? `· ${p.codigo}` : '· sin código'}
-            </div>
-            <div style={{ fontSize: 14, fontWeight: 600 }}>{p.producto}</div>
-          </button>
-        ))}
-        {list.length === 0 && <div className="empty">Sin coincidencias.</div>}
+    <Modal open={open} onClose={onClose} title={`Asignar ${code || ''}`} description="Elige el producto que lleva esta etiqueta">
+      <div className="flex flex-col gap-3">
+        <div className="relative">
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input className="pl-9" placeholder="Buscar producto…" value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
+        <div className="overflow-hidden rounded-xl border">
+          {list.map((p) => (
+            <button key={p.id} data-assign={p.id} className="flex w-full items-center justify-between gap-3 border-b px-3 py-2.5 text-left transition-colors last:border-b-0 hover:bg-accent" onClick={() => pick(p)}>
+              <div className="min-w-0">
+                <div className="truncate text-sm font-medium">{p.producto}</div>
+                <div className="text-xs text-muted-foreground">#{p.id} · {p.marca}</div>
+              </div>
+              {p.codigo
+                ? <span className="font-mono text-xs text-muted-foreground">{p.codigo}</span>
+                : <span className="text-xs text-warning">sin código</span>}
+            </button>
+          ))}
+          {list.length === 0 && <div className="p-6 text-center text-sm text-muted-foreground">Sin coincidencias.</div>}
+        </div>
       </div>
     </Modal>
   );
@@ -305,30 +325,25 @@ function MovementSheet({ open, product, tipo, onClose, onConfirm }) {
     else setPrecio(String(product.costoPEN ?? ''));
   }, [open, product, tipo]);
 
-  if (!open || !product) return null;
-
   return (
-    <Modal open={open} onClose={onClose} title={tipo === 'entrada' ? 'Registrar Entrada' : 'Registrar Salida'}>
-      <div className="card" style={{ marginBottom: 12 }}>
-        <div className="marca">#{product.id} · {product.marca}</div>
-        <div className="nombre">{product.producto}</div>
+    <Modal open={open && !!product} onClose={onClose} title={tipo === 'entrada' ? 'Registrar entrada' : 'Registrar salida'}
+      description={product ? `${product.producto} · stock ${product.stockActual}` : undefined}>
+      <div className="flex flex-col gap-3">
+        {tipo === 'salida' && (
+          <p className="rounded-lg bg-muted/60 p-3 text-sm text-muted-foreground">
+            Para ventas usa <b className="text-foreground">Agregar a la venta</b> (registra cliente y pago). Esto es para mermas, regalos o muestras.
+          </p>
+        )}
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Cantidad">
+            <Input type="number" inputMode="numeric" min="1" value={cantidad} onChange={(e) => setCantidad(e.target.value)} />
+          </Field>
+          <Field label={tipo === 'entrada' ? 'Precio de compra S/' : 'Precio S/'}>
+            <Input type="number" inputMode="decimal" step="0.01" value={precio} onChange={(e) => setPrecio(e.target.value)} placeholder="Opcional" />
+          </Field>
+        </div>
+        <Button size="lg" className="mt-2" onClick={() => onConfirm({ cantidad, precio })}>Confirmar</Button>
       </div>
-      {tipo === 'salida' && (
-        <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 0 }}>
-          Para ventas usa <b>Agregar a la venta</b> (registra cliente y pago). Esto es para mermas, regalos, muestras, etc.
-        </p>
-      )}
-      <label className="field">
-        <span>Cantidad</span>
-        <input className="input" type="number" inputMode="numeric" min="1" value={cantidad} onChange={(e) => setCantidad(e.target.value)} />
-      </label>
-      <label className="field">
-        <span>Precio {tipo === 'entrada' ? 'de compra' : ''} (S/) — opcional</span>
-        <input className="input" type="number" inputMode="decimal" step="0.01" value={precio} onChange={(e) => setPrecio(e.target.value)} />
-      </label>
-      <button className="btn full" onClick={() => onConfirm({ cantidad, precio })}>
-        Confirmar
-      </button>
     </Modal>
   );
 }
