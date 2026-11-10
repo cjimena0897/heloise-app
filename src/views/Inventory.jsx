@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useProducts, addProduct, updateProduct, deleteProduct, suggestNextId, registerMovement } from '../store.js';
+import { useProducts, addProduct, updateProduct, deleteProduct, suggestNextId, registerMovement, getProduct } from '../store.js';
+import SellPanel from '../components/SellPanel.jsx';
 import Modal from '../components/Modal.jsx';
 import { useToast } from '../components/Toast.jsx';
 
@@ -17,6 +18,7 @@ export default function Inventory() {
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [movement, setMovement] = useState(null); // { product, tipo }
+  const [selling, setSelling] = useState(null); // product
   const toast = useToast();
 
   const marcas = useMemo(() => Array.from(new Set(products.map((p) => p.marca))).sort(), [products]);
@@ -32,7 +34,8 @@ export default function Inventory() {
         p.producto.toLowerCase().includes(t) ||
         p.marca.toLowerCase().includes(t) ||
         p.categoria.toLowerCase().includes(t) ||
-        p.id.includes(t)
+        (p.codigo || '').toLowerCase().includes(t) ||
+        p.id.toLowerCase().includes(t)
       );
     });
   }, [products, q, filterMarca, filterCategoria]);
@@ -47,7 +50,7 @@ export default function Inventory() {
       <div className="filters">
         <input
           className="input search"
-          placeholder="Buscar producto, marca, id…"
+          placeholder="Buscar producto, marca, código…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
@@ -73,7 +76,7 @@ export default function Inventory() {
         <div key={p.id} className="card product">
           <div className="top">
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="marca">#{p.id} · {p.marca}</div>
+              <div className="marca">#{p.id}{p.codigo ? ` · ${p.codigo}` : ''} · {p.marca}</div>
               <div className="nombre">{p.producto}</div>
               <div className="meta">
                 <span>📍 {p.ubicacion || '—'}</span>
@@ -86,10 +89,13 @@ export default function Inventory() {
             </div>
           </div>
           <div className="row" style={{ marginTop: 12, gap: 8 }}>
-            <button className="btn small" onClick={() => setMovement({ product: p, tipo: 'entrada' })}>
+            <button className="btn small accent" onClick={() => setSelling(p)} disabled={p.stockActual <= 0}>
+              🛒 Vender
+            </button>
+            <button className="btn small ghost" onClick={() => setMovement({ product: p, tipo: 'entrada' })}>
               ＋ Entrada
             </button>
-            <button className="btn small secondary" onClick={() => setMovement({ product: p, tipo: 'salida' })}>
+            <button className="btn small ghost" onClick={() => setMovement({ product: p, tipo: 'salida' })}>
               − Salida
             </button>
             <button className="btn small ghost" onClick={() => setEditing(p)} style={{ marginLeft: 'auto' }}>
@@ -99,6 +105,20 @@ export default function Inventory() {
         </div>
       ))}
 
+      <Modal open={!!selling} onClose={() => setSelling(null)} title="Vender">
+        {selling && (
+          <>
+            <div className="marca" style={{ fontSize: 12, fontWeight: 700, color: 'var(--navy-600)' }}>
+              {selling.codigo || `#${selling.id}`} · {selling.marca} · stock {selling.stockActual}
+            </div>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>{selling.producto}</div>
+            <SellPanel
+              product={getProduct(selling.id) || selling}
+              onAdded={() => { toast('Agregado a la venta'); setSelling(null); }}
+            />
+          </>
+        )}
+      </Modal>
       <AddOrEditModal
         open={addOpen}
         onClose={() => setAddOpen(false)}
@@ -117,9 +137,13 @@ export default function Inventory() {
         product={editing}
         onClose={() => setEditing(null)}
         onSave={(input) => {
-          updateProduct(editing.id, input);
-          toast('Producto actualizado');
-          setEditing(null);
+          try {
+            updateProduct(editing.id, input);
+            toast('Producto actualizado');
+            setEditing(null);
+          } catch (e) {
+            alert(e.message);
+          }
         }}
         onDelete={() => {
           if (confirm(`¿Eliminar "${editing.producto}"?`)) {
@@ -151,13 +175,15 @@ export default function Inventory() {
   );
 }
 
-function AddOrEditModal({ open, product, onClose, onSave, onDelete }) {
+export { AddOrEditModal as ProductFormModal };
+
+function AddOrEditModal({ open, product, initial, onClose, onSave, onDelete }) {
   const isEdit = !!product;
   const [form, setForm] = useState(() => emptyForm());
 
   // Reset form when opening
   const openKey = open ? (product?.id || 'new') : null;
-  useMemoReset(openKey, () => setForm(product ? { ...product } : { ...emptyForm(), id: suggestNextId() }));
+  useMemoReset(openKey, () => setForm(product ? { codigo: '', ...product } : { ...emptyForm(), id: suggestNextId(), ...initial }));
 
   if (!open) return null;
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -167,6 +193,10 @@ function AddOrEditModal({ open, product, onClose, onSave, onDelete }) {
       <label className="field">
         <span>ID</span>
         <input className="input" value={form.id} onChange={set('id')} disabled={isEdit} />
+      </label>
+      <label className="field">
+        <span>Código de etiqueta</span>
+        <input className="input mono" value={form.codigo} onChange={set('codigo')} placeholder="El de la impresora (ej. AJ0012)" autoCapitalize="characters" autoComplete="off" />
       </label>
       <label className="field">
         <span>Producto</span>
@@ -227,7 +257,7 @@ function MovementModal({ movement, onClose, onConfirm }) {
     setCantidad('1');
     const p = movement?.product;
     if (!p) { setPrecio(''); return; }
-    if (movement.tipo === 'salida') setPrecio(String(p.pOfertaPEN ?? p.pVentaPEN ?? ''));
+    if (movement.tipo === 'salida') setPrecio(String(p.pOfertaPEN || p.pVentaPEN || ''));
     else setPrecio(String(p.costoPEN ?? ''));
   });
 
@@ -262,6 +292,7 @@ function MovementModal({ movement, onClose, onConfirm }) {
 function emptyForm() {
   return {
     id: '',
+    codigo: '',
     producto: '',
     marca: '',
     categoria: 'Skincare',
