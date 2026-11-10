@@ -6,6 +6,7 @@ import Scanner from './views/Scanner.jsx';
 import Transactions from './views/Transactions.jsx';
 import QRGenerator from './views/QRGenerator.jsx';
 import Sales from './views/Sales.jsx';
+import Import from './views/Import.jsx';
 import CartBar from './components/Cart.jsx';
 import { AccountModal, LoginScreen, SyncPill } from './components/Account.jsx';
 import { Button } from './components/ui/button.jsx';
@@ -72,6 +73,7 @@ export default function App() {
           <Route path="/inventario" element={<Inventory />} />
           <Route path="/escaner" element={<Scanner />} />
           <Route path="/ventas" element={<Sales />} />
+          <Route path="/importar" element={<Import />} />
           <Route path="/transacciones" element={<Transactions />} />
           <Route path="/qr" element={<QRGenerator />} />
           <Route path="*" element={<Navigate to="/inventario" replace />} />
