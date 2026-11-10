@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
+import { ArrowLeftRight, LoaderCircle, Package, QrCode, RotateCcw, ScanLine, Wallet } from 'lucide-react';
 import Inventory from './views/Inventory.jsx';
 import Scanner from './views/Scanner.jsx';
 import Transactions from './views/Transactions.jsx';
@@ -7,7 +8,18 @@ import QRGenerator from './views/QRGenerator.jsx';
 import Sales from './views/Sales.jsx';
 import CartBar from './components/Cart.jsx';
 import { AccountModal, LoginScreen, SyncPill } from './components/Account.jsx';
+import { Button } from './components/ui/button.jsx';
 import { logout, startSync, useReset, useStatus } from './store.js';
+import { cn } from './lib/utils.js';
+import { Logo } from './components/Logo.jsx';
+
+const NAV = [
+  { to: '/inventario', label: 'Inventario', title: 'Inventario', icon: Package },
+  { to: '/escaner', label: 'Escáner', title: 'Escáner', icon: ScanLine },
+  { to: '/ventas', label: 'Ventas', title: 'Ventas y cobranza', icon: Wallet },
+  { to: '/transacciones', label: 'Movimientos', title: 'Movimientos', icon: ArrowLeftRight },
+  { to: '/qr', label: 'QR', title: 'Códigos QR', icon: QrCode },
+];
 
 export default function App() {
   const location = useLocation();
@@ -20,39 +32,42 @@ export default function App() {
   }, []);
 
   if (status.mode === 'cloud') {
-    if (!status.authReady) return <Splash text="Cargando…" />;
+    if (!status.authReady) return <Splash text="Cargando…" loading />;
     if (!status.user) return <LoginScreen />;
-    if (status.error) return <Splash text={status.error} action={<button className="btn full secondary" onClick={logout}>Cerrar sesión</button>} />;
-    if (!status.loaded) return <Splash text="Sincronizando datos…" />;
+    if (status.error) {
+      return (
+        <Splash text={status.error}>
+          <Button variant="outline" className="w-full" onClick={logout}>Cerrar sesión</Button>
+        </Splash>
+      );
+    }
+    if (!status.loaded) return <Splash text="Sincronizando datos…" loading />;
   }
 
-  const titles = {
-    '/inventario': 'Inventario',
-    '/escaner': 'Escáner',
-    '/ventas': 'Ventas y cobranza',
-    '/transacciones': 'Transacciones',
-    '/qr': 'Códigos QR',
-  };
-  const title = titles[location.pathname] || 'AJVC';
+  const current = NAV.find((n) => n.to === location.pathname);
 
   return (
-    <div className="app">
-      <header className="topbar no-print">
-        <div className="brand">
-          <div className="logo">AJ</div>
-          <div>
-            <div style={{ fontSize: 11, opacity: 0.7, fontWeight: 500 }}>AJVC · K-beauty</div>
-            <div>{title}</div>
+    <div className="flex min-h-dvh flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] has-[[data-cart-bar]]:pb-[calc(9rem+env(safe-area-inset-bottom))] print:p-0">
+      <header className="pt-safe sticky top-0 z-30 border-b bg-background/80 backdrop-blur-lg print:hidden">
+        <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-3 px-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <Logo />
+            <div className="min-w-0 leading-tight">
+              <div className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">AJVC · K-beauty</div>
+              <div className="truncate font-semibold">{current?.title || 'AJVC'}</div>
+            </div>
           </div>
-        </div>
-        <div className="actions">
-          {status.mode === 'local'
-            ? <button onClick={reset} title="Borrar datos de este celular">Reset</button>
-            : <SyncPill onClick={() => setAccountOpen(true)} />}
+          {status.mode === 'local' ? (
+            <Button variant="ghost" size="sm" onClick={reset} title="Borrar datos de este celular">
+              <RotateCcw /> Reset
+            </Button>
+          ) : (
+            <SyncPill onClick={() => setAccountOpen(true)} />
+          )}
         </div>
       </header>
 
-      <main>
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-5 print:max-w-none print:p-0">
         <Routes>
           <Route path="/" element={<Navigate to="/inventario" replace />} />
           <Route path="/inventario" element={<Inventory />} />
@@ -67,39 +82,45 @@ export default function App() {
       <CartBar />
       <AccountModal open={accountOpen} onClose={() => setAccountOpen(false)} />
 
-      <nav className="bottom-nav no-print">
-        <NavLink to="/inventario" className={({ isActive }) => isActive ? 'active' : ''}>
-          <span className="ico">📦</span>
-          <span>Inventario</span>
-        </NavLink>
-        <NavLink to="/escaner" className={({ isActive }) => isActive ? 'active' : ''}>
-          <span className="ico">📷</span>
-          <span>Escáner</span>
-        </NavLink>
-        <NavLink to="/ventas" className={({ isActive }) => isActive ? 'active' : ''}>
-          <span className="ico">💰</span>
-          <span>Ventas</span>
-        </NavLink>
-        <NavLink to="/transacciones" className={({ isActive }) => isActive ? 'active' : ''}>
-          <span className="ico">🧾</span>
-          <span>Movimientos</span>
-        </NavLink>
-        <NavLink to="/qr" className={({ isActive }) => isActive ? 'active' : ''}>
-          <span className="ico">🔳</span>
-          <span>QR</span>
-        </NavLink>
+      <nav className="pb-safe fixed inset-x-0 bottom-0 z-30 border-t bg-background/85 backdrop-blur-lg print:hidden">
+        <div className="mx-auto grid max-w-3xl grid-cols-5">
+          {NAV.map(({ to, label, icon: Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                cn(
+                  'group flex flex-col items-center gap-1 pt-2 pb-2 text-[11px] font-medium text-muted-foreground transition-colors',
+                  isActive && 'text-foreground'
+                )
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <span className={cn('flex h-7 w-12 items-center justify-center rounded-full transition-colors', isActive && 'bg-brand/40 dark:bg-brand/20')}>
+                    <Icon className="size-[22px]" strokeWidth={isActive ? 2.25 : 1.75} />
+                  </span>
+                  {label}
+                </>
+              )}
+            </NavLink>
+          ))}
+        </div>
       </nav>
     </div>
   );
 }
 
-function Splash({ text, action }) {
+function Splash({ text, loading, children }) {
   return (
-    <div className="login">
-      <div className="card" style={{ textAlign: 'center' }}>
-        <div className="logo big">AJ</div>
-        <p>{text}</p>
-        {action}
+    <div className="grid min-h-dvh place-items-center bg-background p-6">
+      <div className="flex w-full max-w-sm flex-col items-center gap-4 text-center">
+        <Logo className="size-14 rounded-2xl text-xl" />
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          {loading && <LoaderCircle className="size-4 animate-spin" />}
+          {text}
+        </p>
+        {children}
       </div>
     </div>
   );

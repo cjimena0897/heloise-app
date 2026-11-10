@@ -1,6 +1,12 @@
 import { useState } from 'react';
+import { CircleCheck, CloudOff, LoaderCircle, LogOut, RefreshCw, Upload } from 'lucide-react';
 import { localDataSummary, login, logout, resetPassword, uploadLocalData, useStatus } from '../store.js';
 import Modal from './Modal.jsx';
+import { Button } from './ui/button.jsx';
+import { Card, CardContent } from './ui/card.jsx';
+import { Field, Input } from './ui/input.jsx';
+import { Logo } from './Logo.jsx';
+import { cn } from '../lib/utils.js';
 
 const AUTH_ERRORS = {
   'auth/invalid-credential': 'Correo o contraseña incorrectos.',
@@ -41,45 +47,63 @@ export function LoginScreen() {
   }
 
   return (
-    <div className="login">
-      <form className="card" onSubmit={submit}>
-        <div className="logo big">AJ</div>
-        <h2 style={{ textAlign: 'center' }}>AJVC Inventario</h2>
-        <label className="field">
-          <span>Correo</span>
-          <input className="input" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} />
-        </label>
-        <label className="field">
-          <span>Contraseña</span>
-          <input className="input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
-        </label>
-        {msg && <div style={{ color: msg.error ? 'var(--danger)' : 'var(--green)', fontSize: 13, marginBottom: 10 }}>{msg.text}</div>}
-        <button className="btn full" disabled={busy}>{busy ? 'Ingresando…' : 'Ingresar'}</button>
-        <button type="button" className="btn full ghost small" style={{ marginTop: 8 }} onClick={forgot}>
-          Olvidé mi contraseña
-        </button>
-      </form>
+    <div className="grid min-h-dvh place-items-center bg-background p-5">
+      <div className="w-full max-w-sm">
+        <div className="mb-6 flex flex-col items-center gap-3 text-center">
+          <Logo className="size-14 rounded-2xl text-xl" />
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight">AJVC Inventario</h1>
+            <p className="text-sm text-muted-foreground">Ingresa con tu cuenta del equipo</p>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="p-5">
+            <form onSubmit={submit} className="flex flex-col gap-4">
+              <Field label="Correo">
+                <Input type="email" autoComplete="username" placeholder="tu@correo.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+              </Field>
+              <Field label="Contraseña">
+                <Input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+              </Field>
+              {msg && (
+                <p className={cn('text-sm', msg.error ? 'text-destructive' : 'text-success')}>{msg.text}</p>
+              )}
+              <Button size="lg" disabled={busy}>
+                {busy && <LoaderCircle className="animate-spin" />}
+                {busy ? 'Ingresando…' : 'Ingresar'}
+              </Button>
+              <Button type="button" variant="link" size="sm" onClick={forgot}>
+                Olvidé mi contraseña
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
+}
+
+function syncState(st) {
+  if (!st.online) return { key: 'off', text: 'Sin conexión', dot: 'bg-destructive' };
+  if (st.pending) return { key: 'busy', text: 'Sincronizando', dot: 'bg-warning animate-pulse' };
+  return { key: 'ok', text: 'En línea', dot: 'bg-success' };
 }
 
 export function SyncPill({ onClick }) {
   const st = useStatus();
   if (st.mode === 'local') return null;
-  let cls = 'ok', text = 'En línea';
-  if (!st.online) { cls = 'off'; text = 'Sin conexión'; }
-  else if (st.pending) { cls = 'busy'; text = 'Sincronizando'; }
+  const s = syncState(st);
   return (
-    <button className={`sync-pill ${cls}`} onClick={onClick} title="Cuenta y sincronización">
-      <i /> {text}
-    </button>
+    <Button variant="outline" size="sm" onClick={onClick} title="Cuenta y sincronización" className="rounded-full" data-sync={s.key}>
+      <span className={cn('size-2 rounded-full', s.dot)} />
+      {s.text}
+    </Button>
   );
 }
 
 export function AccountModal({ open, onClose }) {
   const st = useStatus();
   const local = localDataSummary();
-  if (!open) return null;
 
   function subir() {
     if (!confirm('¿Subir a la nube los datos guardados en este celular? Lo que ya exista en la nube no se reemplaza.')) return;
@@ -87,29 +111,42 @@ export function AccountModal({ open, onClose }) {
     alert(`Listo: ${r.subidos} registros subidos${r.omitidos ? `, ${r.omitidos} ya existían` : ''}.`);
   }
 
+  const estado = !st.online
+    ? { icon: CloudOff, cls: 'text-destructive', text: 'Sin conexión. Puedes seguir vendiendo: los cambios se suben solos al volver el internet.' }
+    : st.pending
+      ? { icon: RefreshCw, cls: 'text-warning animate-spin', text: 'Subiendo cambios…' }
+      : { icon: CircleCheck, cls: 'text-success', text: 'Todo sincronizado con tu equipo.' };
+
   return (
     <Modal open={open} onClose={onClose} title="Cuenta">
-      <div className="card">
-        <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 700 }}>CONECTADA COMO</div>
-        <div style={{ fontWeight: 700 }}>{st.user?.email}</div>
-        <div style={{ fontSize: 13, marginTop: 8 }}>
-          {!st.online
-            ? '📴 Sin conexión. Puedes seguir vendiendo: los cambios se suben solos al volver el internet.'
-            : st.pending
-              ? '⏳ Subiendo cambios…'
-              : '✅ Todo sincronizado con tu equipo.'}
-        </div>
+      <div className="flex flex-col gap-3">
+        <Card>
+          <CardContent className="flex flex-col gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">Conectada como</div>
+              <div className="font-medium">{st.user?.email}</div>
+            </div>
+            <div className="flex items-start gap-2 text-sm">
+              <estado.icon className={cn('mt-0.5 size-4 shrink-0', estado.cls)} />
+              <span>{estado.text}</span>
+            </div>
+          </CardContent>
+        </Card>
+        {local && (
+          <Card className="border-warning/30 bg-warning-soft">
+            <CardContent className="flex flex-col gap-3">
+              <p className="text-sm">
+                Este celular tiene datos de antes de conectar la nube: <b>{local.productos}</b> productos,{' '}
+                <b>{local.ventas}</b> ventas y <b>{local.movimientos}</b> movimientos.
+              </p>
+              <Button onClick={subir}><Upload /> Subir a la nube</Button>
+            </CardContent>
+          </Card>
+        )}
+        <Button variant="outline" onClick={() => { logout(); onClose(); }}>
+          <LogOut /> Cerrar sesión
+        </Button>
       </div>
-      {local && (
-        <div className="card" style={{ background: 'var(--yellow-bg)', borderColor: 'transparent' }}>
-          <div style={{ fontSize: 13, marginBottom: 8 }}>
-            Este celular tiene datos de antes de conectar la nube: {local.productos} productos,{' '}
-            {local.ventas} ventas y {local.movimientos} movimientos.
-          </div>
-          <button className="btn full small" onClick={subir}>⬆ Subir a la nube</button>
-        </div>
-      )}
-      <button className="btn full secondary" onClick={() => { logout(); onClose(); }}>Cerrar sesión</button>
     </Modal>
   );
 }

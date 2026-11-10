@@ -1,13 +1,31 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useProducts, addProduct, updateProduct, deleteProduct, suggestNextId, registerMovement, getProduct } from '../store.js';
-import SellPanel from '../components/SellPanel.jsx';
+import { ArrowDownToLine, ArrowUpFromLine, MapPin, Package, Pencil, Plus, Search, ShoppingBag, Trash2 } from 'lucide-react';
+import { useProducts, addProduct, updateProduct, deleteProduct, suggestNextId, registerMovement, getProduct, money } from '../store.js';
 import Modal from '../components/Modal.jsx';
+import SellPanel from '../components/SellPanel.jsx';
 import { useToast } from '../components/Toast.jsx';
+import { Button } from '../components/ui/button.jsx';
+import { Card } from '../components/ui/card.jsx';
+import { Badge } from '../components/ui/badge.jsx';
+import { Field, Input, NativeSelect } from '../components/ui/input.jsx';
+import { PageHeader, EmptyState } from '../components/Page.jsx';
 
-function stockClass(n) {
-  if (n <= 0) return 'red';
-  if (n <= 2) return 'yellow';
-  return 'green';
+export function StockBadge({ n, className }) {
+  const variant = n <= 0 ? 'destructive' : n <= 2 ? 'warning' : 'success';
+  return <Badge variant={variant} className={className} data-stock={n}>{n <= 0 ? 'Agotado' : `${n} u.`}</Badge>;
+}
+
+export function ProductHeading({ p }) {
+  return (
+    <div className="min-w-0">
+      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        <span className="font-mono">{p.codigo || `#${p.id}`}</span>
+        <span>·</span>
+        <span className="truncate uppercase tracking-wide">{p.marca}</span>
+      </div>
+      <div className="mt-0.5 font-semibold leading-snug" data-testid="producto-nombre">{p.producto}</div>
+    </div>
+  );
 }
 
 export default function Inventory() {
@@ -41,82 +59,73 @@ export default function Inventory() {
   }, [products, q, filterMarca, filterCategoria]);
 
   return (
-    <div className="page">
-      <div className="row between" style={{ marginBottom: 12 }}>
-        <h2 style={{ margin: 0 }}>Inventario</h2>
-        <button className="btn accent small" onClick={() => setAddOpen(true)}>＋ Nuevo</button>
-      </div>
+    <div className="flex flex-col gap-4">
+      <PageHeader
+        title="Inventario"
+        description={`${filtered.length} de ${products.length} productos`}
+        action={<Button size="sm" onClick={() => setAddOpen(true)}><Plus /> Nuevo</Button>}
+      />
 
-      <div className="filters">
-        <input
-          className="input search"
-          placeholder="Buscar producto, marca, código…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
-        <select className="select" value={filterMarca} onChange={(e) => setFilterMarca(e.target.value)}>
-          <option value="">Todas las marcas</option>
-          {marcas.map((m) => <option key={m} value={m}>{m}</option>)}
-        </select>
-        <select className="select" value={filterCategoria} onChange={(e) => setFilterCategoria(e.target.value)}>
-          <option value="">Todas las categorías</option>
-          {categorias.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
-      </div>
-
-      <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>
-        {filtered.length} de {products.length} productos
+      <div className="flex flex-col gap-2">
+        <div className="relative">
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input className="pl-9" placeholder="Buscar producto, marca, código…" value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <NativeSelect value={filterMarca} onChange={(e) => setFilterMarca(e.target.value)}>
+            <option value="">Todas las marcas</option>
+            {marcas.map((m) => <option key={m} value={m}>{m}</option>)}
+          </NativeSelect>
+          <NativeSelect value={filterCategoria} onChange={(e) => setFilterCategoria(e.target.value)}>
+            <option value="">Todas las categorías</option>
+            {categorias.map((c) => <option key={c} value={c}>{c}</option>)}
+          </NativeSelect>
+        </div>
       </div>
 
       {filtered.length === 0 && (
-        <div className="empty">No hay productos. Toca <b>＋ Nuevo</b> para agregar.</div>
+        <EmptyState icon={Package} title={products.length ? 'Sin coincidencias' : 'Aún no hay productos'}>
+          {products.length ? 'Prueba con otra búsqueda o filtro.' : <>Toca <b>Nuevo</b> o escanea una etiqueta para agregar.</>}
+        </EmptyState>
       )}
 
-      {filtered.map((p) => (
-        <div key={p.id} className="card product">
-          <div className="top">
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="marca">#{p.id}{p.codigo ? ` · ${p.codigo}` : ''} · {p.marca}</div>
-              <div className="nombre">{p.producto}</div>
-              <div className="meta">
-                <span>📍 {p.ubicacion || '—'}</span>
-                <span className="dot">{p.categoria}</span>
-                <span className="dot">S/ {Number(p.pVentaPEN || 0).toFixed(2)}</span>
-              </div>
+      <div className="flex flex-col gap-3">
+        {filtered.map((p) => (
+          <Card key={p.id} className="p-4" data-product={p.id}>
+            <div className="flex items-start justify-between gap-3">
+              <ProductHeading p={p} />
+              <StockBadge n={p.stockActual} className="mt-0.5" />
             </div>
-            <div className={`stock ${stockClass(p.stockActual)}`}>
-              {p.stockActual} u.
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" />{p.ubicacion || '—'}</span>
+              <span>{p.categoria}</span>
+              <span className="font-medium text-foreground tabular-nums">{money(p.pVentaPEN)}</span>
             </div>
-          </div>
-          <div className="row" style={{ marginTop: 12, gap: 8 }}>
-            <button className="btn small accent" onClick={() => setSelling(p)} disabled={p.stockActual <= 0}>
-              🛒 Vender
-            </button>
-            <button className="btn small ghost" onClick={() => setMovement({ product: p, tipo: 'entrada' })}>
-              ＋ Entrada
-            </button>
-            <button className="btn small ghost" onClick={() => setMovement({ product: p, tipo: 'salida' })}>
-              − Salida
-            </button>
-            <button className="btn small ghost" onClick={() => setEditing(p)} style={{ marginLeft: 'auto' }}>
-              Editar
-            </button>
-          </div>
-        </div>
-      ))}
+            <div className="mt-3 flex gap-2">
+              <Button variant="brand" size="sm" onClick={() => setSelling(p)} disabled={p.stockActual <= 0}>
+                <ShoppingBag /> Vender
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setMovement({ product: p, tipo: 'entrada' })}>
+                <ArrowDownToLine /> Entrada
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setMovement({ product: p, tipo: 'salida' })}>
+                <ArrowUpFromLine /> Salida
+              </Button>
+              <Button variant="ghost" size="icon-sm" className="ml-auto" onClick={() => setEditing(p)} aria-label="Editar">
+                <Pencil />
+              </Button>
+            </div>
+          </Card>
+        ))}
+      </div>
 
-      <Modal open={!!selling} onClose={() => setSelling(null)} title="Vender">
+      <Modal open={!!selling} onClose={() => setSelling(null)} title={selling?.producto || 'Vender'}
+        description={selling ? `${selling.codigo || `#${selling.id}`} · ${selling.marca} · ${selling.stockActual} en stock` : undefined}>
         {selling && (
-          <>
-            <div className="marca" style={{ fontSize: 12, fontWeight: 700, color: 'var(--navy-600)' }}>
-              {selling.codigo || `#${selling.id}`} · {selling.marca} · stock {selling.stockActual}
-            </div>
-            <div style={{ fontWeight: 700, fontSize: 16 }}>{selling.producto}</div>
-            <SellPanel
-              product={getProduct(selling.id) || selling}
-              onAdded={() => { toast('Agregado a la venta'); setSelling(null); }}
-            />
-          </>
+          <SellPanel
+            product={getProduct(selling.id) || selling}
+            onAdded={() => { toast('Agregado a la venta'); setSelling(null); }}
+          />
         )}
       </Modal>
       <AddOrEditModal
@@ -185,65 +194,60 @@ function AddOrEditModal({ open, product, initial, onClose, onSave, onDelete }) {
   const openKey = open ? (product?.id || 'new') : null;
   useMemoReset(openKey, () => setForm(product ? { codigo: '', ...product } : { ...emptyForm(), id: suggestNextId(), ...initial }));
 
-  if (!open) return null;
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   return (
     <Modal open={open} onClose={onClose} title={isEdit ? 'Editar producto' : 'Nuevo producto'}>
-      <label className="field">
-        <span>ID</span>
-        <input className="input" value={form.id} onChange={set('id')} disabled={isEdit} />
-      </label>
-      <label className="field">
-        <span>Código de etiqueta</span>
-        <input className="input mono" value={form.codigo} onChange={set('codigo')} placeholder="El de la impresora (ej. AJ0012)" autoCapitalize="characters" autoComplete="off" />
-      </label>
-      <label className="field">
-        <span>Producto</span>
-        <input className="input" value={form.producto} onChange={set('producto')} />
-      </label>
-      <div className="row">
-        <label className="field" style={{ flex: 1 }}>
-          <span>Marca</span>
-          <input className="input" value={form.marca} onChange={set('marca')} />
-        </label>
-        <label className="field" style={{ flex: 1 }}>
-          <span>Categoría</span>
-          <input className="input" value={form.categoria} onChange={set('categoria')} />
-        </label>
-      </div>
-      <label className="field">
-        <span>Ubicación</span>
-        <input className="input" value={form.ubicacion} onChange={set('ubicacion')} />
-      </label>
-      <div className="row">
-        <label className="field" style={{ flex: 1 }}>
-          <span>Cant. inicial</span>
-          <input className="input" type="number" inputMode="numeric" value={form.cantInicial} onChange={set('cantInicial')} />
-        </label>
-        <label className="field" style={{ flex: 1 }}>
-          <span>Costo (S/)</span>
-          <input className="input" type="number" inputMode="decimal" step="0.01" value={form.costoPEN} onChange={set('costoPEN')} />
-        </label>
-      </div>
-      <div className="row">
-        <label className="field" style={{ flex: 1 }}>
-          <span>P. Venta (S/)</span>
-          <input className="input" type="number" inputMode="decimal" step="0.01" value={form.pVentaPEN} onChange={set('pVentaPEN')} />
-        </label>
-        <label className="field" style={{ flex: 1 }}>
-          <span>P. Oferta (S/)</span>
-          <input className="input" type="number" inputMode="decimal" step="0.01" value={form.pOfertaPEN} onChange={set('pOfertaPEN')} />
-        </label>
-      </div>
+      <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-[5rem_1fr] gap-3">
+          <Field label="ID">
+            <Input value={form.id} onChange={set('id')} disabled={isEdit} />
+          </Field>
+          <Field label="Código de etiqueta">
+            <Input className="font-mono uppercase placeholder:normal-case placeholder:font-sans" value={form.codigo} onChange={set('codigo')} placeholder="Ej. AJ0012" autoCapitalize="characters" autoComplete="off" />
+          </Field>
+        </div>
+        <Field label="Producto">
+          <Input value={form.producto} onChange={set('producto')} />
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Marca">
+            <Input value={form.marca} onChange={set('marca')} />
+          </Field>
+          <Field label="Categoría">
+            <Input value={form.categoria} onChange={set('categoria')} />
+          </Field>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Ubicación">
+            <Input value={form.ubicacion} onChange={set('ubicacion')} />
+          </Field>
+          <Field label="Cant. inicial">
+            <Input type="number" inputMode="numeric" value={form.cantInicial} onChange={set('cantInicial')} />
+          </Field>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <Field label="Costo S/">
+            <Input type="number" inputMode="decimal" step="0.01" value={form.costoPEN} onChange={set('costoPEN')} />
+          </Field>
+          <Field label="Venta S/">
+            <Input type="number" inputMode="decimal" step="0.01" value={form.pVentaPEN} onChange={set('pVentaPEN')} />
+          </Field>
+          <Field label="Oferta S/">
+            <Input type="number" inputMode="decimal" step="0.01" value={form.pOfertaPEN} onChange={set('pOfertaPEN')} />
+          </Field>
+        </div>
 
-      <div className="row" style={{ marginTop: 12 }}>
-        {isEdit && onDelete && (
-          <button className="btn danger small" onClick={onDelete}>Eliminar</button>
-        )}
-        <button className="btn full" onClick={() => onSave(form)} style={{ marginLeft: 'auto', flex: 1 }}>
-          {isEdit ? 'Guardar' : 'Crear'}
-        </button>
+        <div className="mt-2 flex gap-2">
+          {isEdit && onDelete && (
+            <Button variant="outline" size="icon" className="text-destructive" onClick={onDelete} aria-label="Eliminar">
+              <Trash2 />
+            </Button>
+          )}
+          <Button size="lg" className="flex-1" onClick={() => onSave(form)}>
+            {isEdit ? 'Guardar cambios' : 'Crear producto'}
+          </Button>
+        </div>
       </div>
     </Modal>
   );
@@ -261,30 +265,32 @@ function MovementModal({ movement, onClose, onConfirm }) {
     else setPrecio(String(p.costoPEN ?? ''));
   });
 
-  if (!movement) return null;
-  const { product, tipo } = movement;
-  const titulo = tipo === 'entrada' ? 'Registrar Entrada' : 'Registrar Salida';
+  const product = movement?.product;
+  const tipo = movement?.tipo;
 
   return (
-    <Modal open={!!movement} onClose={onClose} title={titulo}>
-      <div className="card" style={{ marginBottom: 12 }}>
-        <div className="marca">#{product.id} · {product.marca}</div>
-        <div className="nombre" style={{ marginTop: 2 }}>{product.producto}</div>
-        <div className="meta" style={{ marginTop: 6 }}>
-          <span className={`stock ${stockClass(product.stockActual)}`}>Stock: {product.stockActual}</span>
+    <Modal open={!!movement} onClose={onClose} title={tipo === 'entrada' ? 'Registrar entrada' : 'Registrar salida'}
+      description={product ? `${product.producto} · stock ${product.stockActual}` : undefined}>
+      {product && (
+        <div className="flex flex-col gap-3">
+          {tipo === 'salida' && (
+            <p className="rounded-lg bg-muted/60 p-3 text-sm text-muted-foreground">
+              Para ventas usa <b className="text-foreground">Vender</b> (registra cliente y pago). Esto es para mermas, regalos o muestras.
+            </p>
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Cantidad">
+              <Input type="number" inputMode="numeric" min="1" value={cantidad} onChange={(e) => setCantidad(e.target.value)} />
+            </Field>
+            <Field label={tipo === 'entrada' ? 'Precio de compra S/' : 'Precio S/'}>
+              <Input type="number" inputMode="decimal" step="0.01" value={precio} onChange={(e) => setPrecio(e.target.value)} placeholder="Opcional" />
+            </Field>
+          </div>
+          <Button size="lg" className="mt-2" onClick={() => onConfirm({ cantidad, precio })}>
+            Confirmar {tipo}
+          </Button>
         </div>
-      </div>
-      <label className="field">
-        <span>Cantidad</span>
-        <input className="input" type="number" inputMode="numeric" min="1" value={cantidad} onChange={(e) => setCantidad(e.target.value)} />
-      </label>
-      <label className="field">
-        <span>Precio {tipo === 'entrada' ? 'de compra' : 'de venta'} (S/) — opcional</span>
-        <input className="input" type="number" inputMode="decimal" step="0.01" value={precio} onChange={(e) => setPrecio(e.target.value)} />
-      </label>
-      <button className="btn full" onClick={() => onConfirm({ cantidad, precio })}>
-        Confirmar {tipo === 'entrada' ? 'entrada' : 'salida'}
-      </button>
+      )}
     </Modal>
   );
 }

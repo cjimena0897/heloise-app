@@ -5,7 +5,10 @@ import { firebaseConfig } from './firebaseConfig.js';
 const EMULATOR = !!import.meta.env.VITE_FIREBASE_EMULATOR;
 const config = EMULATOR ? { apiKey: 'demo', authDomain: 'localhost', projectId: 'demo-ajvc' } : firebaseConfig;
 
-export const CLOUD = EMULATOR || !!firebaseConfig?.apiKey;
+// VITE_LOCAL_ONLY=1 fuerza el modo local (útil para probar sin cuenta).
+const LOCAL_ONLY = !!import.meta.env.VITE_LOCAL_ONLY;
+
+export const CLOUD = !LOCAL_ONLY && (EMULATOR || !!firebaseConfig?.apiKey);
 
 let api = null;
 

@@ -1,21 +1,14 @@
-import { createContext, useCallback, useContext, useState } from 'react';
-
-const ToastCtx = createContext(null);
+import { Toaster, toast } from 'sonner';
 
 export function ToastProvider({ children }) {
-  const [msg, setMsg] = useState(null);
-  const show = useCallback((m) => {
-    setMsg(m);
-    setTimeout(() => setMsg(null), 2200);
-  }, []);
   return (
-    <ToastCtx.Provider value={show}>
+    <>
       {children}
-      {msg && <div className="toast">{msg}</div>}
-    </ToastCtx.Provider>
+      <Toaster theme="system" position="top-center" richColors closeButton={false} toastOptions={{ className: 'font-sans' }} />
+    </>
   );
 }
 
 export function useToast() {
-  return useContext(ToastCtx) || (() => {});
+  return (msg) => toast.success(msg);
 }

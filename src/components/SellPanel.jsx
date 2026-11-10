@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react';
+import { Minus, Plus, ShoppingBag } from 'lucide-react';
 import { DESCUENTOS, addToCart, money, precioConDescuento, precioLista, r2 } from '../store.js';
+import { Button } from './ui/button.jsx';
+import { Field, Input } from './ui/input.jsx';
+import { Badge } from './ui/badge.jsx';
+import { cn } from '../lib/utils.js';
 
 /**
  * Muestra el precio con los descuentos rápidos (0–30 %), precio de oferta,
@@ -47,91 +52,76 @@ export default function SellPanel({ product, onAdded }) {
     }
   }
 
+  const options = [
+    ...DESCUENTOS.map((d) => ({ key: d, label: d === 0 ? 'Sin dscto' : `${d}%`, price: precioConDescuento(lista, d) })),
+    ...(hasOferta ? [{ key: 'oferta', label: 'Oferta', price: oferta }] : []),
+    { key: 'otro', label: 'Otro %', price: mode === 'otro' && otroPct ? unit : null },
+  ];
+
   return (
-    <div className="sell">
-      <div className="price-hero">
-        {pct > 0 && <div className="was">{money(lista)}</div>}
-        <div className="now">{money(unit)}</div>
-        {pct > 0 && (
-          <div className="save">−{pct}% · ahorra {money(ahorro)}</div>
-        )}
+    <div className="flex flex-col gap-4">
+      <div className="rounded-xl bg-muted/60 py-4 text-center">
+        <div className={cn('text-sm text-muted-foreground line-through', pct <= 0 && 'invisible')}>{money(lista)}</div>
+        <div className="text-4xl font-semibold tracking-tight tabular-nums" data-testid="precio-final">{money(unit)}</div>
+        <div className="mt-2 flex h-6 justify-center">
+          {pct > 0 && <Badge variant="success">−{pct}% · ahorra {money(ahorro)}</Badge>}
+        </div>
       </div>
 
-      <div className="section-title">Descuento</div>
-      <div className="chips">
-        {DESCUENTOS.map((d) => (
-          <button
-            key={d}
-            type="button"
-            className={`chip ${precioManual === '' && mode === d ? 'on' : ''}`}
-            onClick={() => pick(d)}
-          >
-            <b>{d === 0 ? 'Sin dscto' : `${d}%`}</b>
-            <small>{money(precioConDescuento(lista, d))}</small>
-          </button>
-        ))}
-        {hasOferta && (
-          <button
-            type="button"
-            className={`chip ${precioManual === '' && mode === 'oferta' ? 'on' : ''}`}
-            onClick={() => pick('oferta')}
-          >
-            <b>Oferta</b>
-            <small>{money(oferta)}</small>
-          </button>
-        )}
-        <button
-          type="button"
-          className={`chip ${precioManual === '' && mode === 'otro' ? 'on' : ''}`}
-          onClick={() => pick('otro')}
-        >
-          <b>Otro %</b>
-          <small>{mode === 'otro' && otroPct ? money(unit) : '—'}</small>
-        </button>
+      <div>
+        <div className="mb-2 text-sm font-medium">Descuento</div>
+        <div className="grid grid-cols-4 gap-2">
+          {options.map((o) => {
+            const on = precioManual === '' && mode === o.key;
+            return (
+              <button
+                key={o.key}
+                type="button"
+                data-chip={o.key}
+                onClick={() => pick(o.key)}
+                className={cn(
+                  'flex h-14 flex-col items-center justify-center rounded-lg border bg-card text-sm font-semibold shadow-xs transition-all active:scale-[0.97]',
+                  on ? 'border-primary bg-primary text-primary-foreground' : 'hover:bg-accent'
+                )}
+              >
+                {o.label}
+                <span className={cn('text-[11px] font-medium tabular-nums', on ? 'text-primary-foreground/75' : 'text-muted-foreground')}>
+                  {o.price != null ? money(o.price) : '—'}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {mode === 'otro' && precioManual === '' && (
-        <label className="field" style={{ marginTop: 10 }}>
-          <span>Descuento personalizado (%)</span>
-          <input
-            className="input"
-            type="number"
-            inputMode="decimal"
-            min="0"
-            max="100"
-            value={otroPct}
-            onChange={(e) => setOtroPct(e.target.value)}
-            autoFocus
-          />
-        </label>
+        <Field label="Descuento personalizado (%)">
+          <Input type="number" inputMode="decimal" min="0" max="100" value={otroPct} onChange={(e) => setOtroPct(e.target.value)} autoFocus />
+        </Field>
       )}
 
-      <div className="row" style={{ marginTop: 10, alignItems: 'flex-end' }}>
-        <label className="field" style={{ flex: 1, marginBottom: 0 }}>
-          <span>Precio final (S/)</span>
-          <input
-            className="input"
-            type="number"
-            inputMode="decimal"
-            step="0.01"
-            placeholder={unit.toFixed(2)}
-            value={precioManual}
-            onChange={(e) => setPrecioManual(e.target.value)}
-          />
-        </label>
-        <div className="field" style={{ marginBottom: 0 }}>
-          <span className="lbl">Cantidad</span>
-          <div className="stepper">
-            <button type="button" onClick={() => setCantidad((c) => Math.max(1, c - 1))}>−</button>
-            <div>{cantidad}</div>
-            <button type="button" onClick={() => setCantidad((c) => Math.min(stock, c + 1))}>＋</button>
+      <div className="flex items-end gap-3">
+        <Field label="Precio final (S/)" className="flex-1">
+          <Input type="number" inputMode="decimal" step="0.01" placeholder={unit.toFixed(2)} value={precioManual} onChange={(e) => setPrecioManual(e.target.value)} />
+        </Field>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium">Cantidad</span>
+          <div className="flex h-10 items-center rounded-lg border border-input bg-card shadow-xs">
+            <Button type="button" variant="ghost" size="icon" className="rounded-r-none" onClick={() => setCantidad((c) => Math.max(1, c - 1))} aria-label="Menos">
+              <Minus />
+            </Button>
+            <div className="w-8 text-center font-semibold tabular-nums">{cantidad}</div>
+            <Button type="button" variant="ghost" size="icon" className="rounded-l-none" onClick={() => setCantidad((c) => Math.min(stock, c + 1))} aria-label="Más">
+              <Plus />
+            </Button>
           </div>
         </div>
       </div>
 
-      <button className="btn full accent" style={{ marginTop: 12 }} onClick={add} disabled={stock <= 0}>
-        {stock <= 0 ? 'Sin stock' : `🛒 Agregar a la venta · ${money(total)}`}
-      </button>
+      <Button variant="brand" size="lg" onClick={add} disabled={stock <= 0}>
+        <ShoppingBag />
+        {stock <= 0 ? 'Sin stock' : <>Agregar a la venta · <span className="tabular-nums">{money(total)}</span></>}
+      </Button>
     </div>
   );
 }

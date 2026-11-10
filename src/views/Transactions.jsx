@@ -1,10 +1,15 @@
 import { useMemo, useState } from 'react';
-import { useTransactions, downloadCSV } from '../store.js';
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Download } from 'lucide-react';
+import { useTransactions, downloadCSV, money } from '../store.js';
+import { Button } from '../components/ui/button.jsx';
+import { Card } from '../components/ui/card.jsx';
+import { SegmentedTabs } from '../components/ui/tabs.jsx';
+import { PageHeader, EmptyState } from '../components/Page.jsx';
+import { cn } from '../lib/utils.js';
 
 function fmtDate(iso) {
   try {
-    const d = new Date(iso);
-    return d.toLocaleString('es-PE', {
+    return new Date(iso).toLocaleString('es-PE', {
       day: '2-digit', month: '2-digit', year: 'numeric',
       hour: '2-digit', minute: '2-digit',
     });
@@ -37,78 +42,71 @@ export default function Transactions() {
   }, [tx]);
 
   return (
-    <div className="page">
-      <div className="row between" style={{ marginBottom: 12 }}>
-        <h2 style={{ margin: 0 }}>Movimientos</h2>
-        <button className="btn accent small" onClick={downloadCSV} disabled={tx.length === 0}>
-          ⬇ CSV
-        </button>
-      </div>
+    <div className="flex flex-col gap-4">
+      <PageHeader
+        title="Movimientos"
+        description="Entradas y salidas de stock"
+        action={<Button size="sm" variant="outline" onClick={downloadCSV} disabled={tx.length === 0}><Download /> CSV</Button>}
+      />
 
-      <div className="card">
-        <div className="row wrap" style={{ gap: 14 }}>
-          <Stat label="Entradas" value={totals.entradas} color="var(--green)" />
-          <Stat label="Salidas" value={totals.salidas} color="var(--red)" />
-          <Stat label="Ingreso S/" value={totals.ingreso.toFixed(2)} color="var(--navy-800)" />
-          <Stat label="Costo S/" value={totals.costo.toFixed(2)} color="var(--navy-800)" />
-        </div>
-      </div>
+      <Card className="grid grid-cols-2 gap-px overflow-hidden bg-border sm:grid-cols-4">
+        <Stat label="Entradas" value={totals.entradas} className="text-success" />
+        <Stat label="Salidas" value={totals.salidas} className="text-destructive" />
+        <Stat label="Ingreso" value={money(totals.ingreso)} />
+        <Stat label="Costo" value={money(totals.costo)} />
+      </Card>
 
-      <div className="filters" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
-        <FilterBtn active={filter === 'todos'} onClick={() => setFilter('todos')}>Todos</FilterBtn>
-        <FilterBtn active={filter === 'entrada'} onClick={() => setFilter('entrada')}>Entradas</FilterBtn>
-        <FilterBtn active={filter === 'salida'} onClick={() => setFilter('salida')}>Salidas</FilterBtn>
-      </div>
+      <SegmentedTabs
+        value={filter}
+        onChange={setFilter}
+        options={[
+          { value: 'todos', label: 'Todos' },
+          { value: 'entrada', label: 'Entradas' },
+          { value: 'salida', label: 'Salidas' },
+        ]}
+      />
 
       {filtered.length === 0 && (
-        <div className="empty">Aún no hay movimientos registrados.</div>
+        <EmptyState icon={ArrowLeftRight} title="Aún no hay movimientos">
+          Las ventas, entradas y salidas aparecerán aquí.
+        </EmptyState>
       )}
 
       {filtered.length > 0 && (
-        <div className="card">
-          {filtered.map((t) => (
-            <div key={t.id} className="tx-item">
-              <div>
-                <div className="ttl">
-                  #{t.productId} · {t.productoNombre}
+        <Card className="overflow-hidden">
+          {filtered.map((t) => {
+            const entrada = t.tipo === 'entrada';
+            const Icon = entrada ? ArrowDownLeft : ArrowUpRight;
+            return (
+              <div key={t.id} className="flex items-center gap-3 border-b px-4 py-3 last:border-b-0">
+                <div className={cn('grid size-9 shrink-0 place-items-center rounded-full', entrada ? 'bg-success-soft text-success' : 'bg-destructive-soft text-destructive')}>
+                  <Icon className="size-4" />
                 </div>
-                <div className="sub">
-                  {fmtDate(t.fecha)} · {t.marca}
-                  {t.precio != null && <> · S/ {Number(t.precio).toFixed(2)}</>}
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium">{t.productoNombre}</div>
+                  <div className="truncate text-xs text-muted-foreground">
+                    {fmtDate(t.fecha)} · {t.marca}
+                    {t.cliente && <> · {t.cliente}</>}
+                    {t.precio != null && <> · {money(t.precio)}</>}
+                  </div>
+                </div>
+                <div className={cn('font-semibold tabular-nums', entrada ? 'text-success' : 'text-destructive')}>
+                  {entrada ? '+' : '−'}{t.cantidad}
                 </div>
               </div>
-              <div className={`qty ${t.tipo}`}>
-                {t.tipo === 'entrada' ? '+' : '−'}{t.cantidad}
-              </div>
-            </div>
-          ))}
-        </div>
+            );
+          })}
+        </Card>
       )}
     </div>
   );
 }
 
-function Stat({ label, value, color }) {
+function Stat({ label, value, className }) {
   return (
-    <div style={{ minWidth: 80 }}>
-      <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>{label}</div>
-      <div style={{ fontSize: 18, fontWeight: 800, color }}>{value}</div>
+    <div className="flex flex-col gap-0.5 bg-card p-3.5">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className={cn('text-lg font-semibold tracking-tight tabular-nums', className)}>{value}</div>
     </div>
-  );
-}
-
-function FilterBtn({ active, onClick, children }) {
-  return (
-    <button
-      onClick={onClick}
-      className="btn small"
-      style={{
-        background: active ? 'var(--navy-800)' : '#fff',
-        color: active ? '#fff' : 'var(--navy-800)',
-        border: active ? '1px solid var(--navy-800)' : '1px solid var(--border)',
-      }}
-    >
-      {children}
-    </button>
   );
 }
