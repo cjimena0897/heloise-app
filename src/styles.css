@@ -137,16 +137,6 @@
   padding-top: env(safe-area-inset-top);
 }
 
-/* Cámara del escáner (la librería inyecta su propio <video>). */
-#qr-reader {
-  width: 100% !important;
-  border: none !important;
-}
-#qr-reader video {
-  width: 100% !important;
-  display: block;
-}
-
 @media print {
   @page { margin: 10mm; }
   body { background: #fff !important; color: #000 !important; }
@@ -155,3 +145,4 @@
 
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes scanline { 0%, 100% { top: 12%; } 50% { top: 86%; } }

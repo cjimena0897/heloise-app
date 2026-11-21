@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Html5Qrcode, Html5QrcodeSupportedFormats as F } from 'html5-qrcode';
+import { useEffect, useMemo, useState } from 'react';
 import {
   addProduct, assignCode, findByCode, getProduct, money, normCode, precioLista, registerMovement,
   useProducts,
 } from '../store.js';
-import { ArrowDownToLine, ArrowUpFromLine, Barcode, Camera, CameraOff, Link2, MapPin, Plus, ScanLine, Search, TriangleAlert } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpFromLine, Barcode, Camera, Link2, MapPin, Plus, ScanLine, Search, TriangleAlert } from 'lucide-react';
 import Modal from '../components/Modal.jsx';
+import CameraScanner from '../components/CameraScanner.jsx';
 import SellPanel from '../components/SellPanel.jsx';
 import { ProductFormModal, ProductHeading, StockBadge } from './Inventory.jsx';
 import { ProductPhoto } from '../components/ProductPhoto.jsx';
@@ -15,79 +15,26 @@ import { Card, CardContent } from '../components/ui/card.jsx';
 import { Field, Input } from '../components/ui/input.jsx';
 import { PageHeader } from '../components/Page.jsx';
 
-const READER_ID = 'qr-reader';
-
-// QR + códigos de barras habituales de impresoras de etiquetas.
-const FORMATS = [
-  F.QR_CODE, F.CODE_128, F.CODE_39, F.CODE_93, F.EAN_13, F.EAN_8,
-  F.UPC_A, F.UPC_E, F.ITF, F.CODABAR, F.DATA_MATRIX,
-];
-
 export default function Scanner() {
   const [scanned, setScanned] = useState(null); // product
   const [unknownCode, setUnknownCode] = useState(null);
   const [movement, setMovement] = useState(null); // { tipo }
   const [assignOpen, setAssignOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
-  const [running, setRunning] = useState(false);
-  const [starting, setStarting] = useState(false);
-  const [error, setError] = useState(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanKey, setScanKey] = useState(0);
   const [manualId, setManualId] = useState('');
-  const scannerRef = useRef(null);
-  const busyRef = useRef(false);
   const toast = useToast();
 
-  useEffect(() => {
-    return () => stop();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function start() {
-    setError(null);
+  function start() {
     setScanned(null);
     setUnknownCode(null);
-    busyRef.current = false;
-    await stop();
-    // Mostrar el contenedor antes de iniciar para que la librería mida bien su ancho.
-    setStarting(true);
-    await new Promise((r) => setTimeout(r, 50));
-    try {
-      const html5 = new Html5Qrcode(READER_ID, {
-        verbose: false,
-        formatsToSupport: FORMATS,
-        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-      });
-      scannerRef.current = html5;
-      await html5.start(
-        { facingMode: 'environment' },
-        {
-          fps: 12,
-          // Caja ancha para que entren códigos de barras horizontales.
-          qrbox: (w, h) => {
-            const width = Math.floor(Math.min(w * 0.9, 340));
-            return { width, height: Math.floor(Math.min(h * 0.8, width * 0.6)) };
-          },
-        },
-        (decoded) => onDecoded(decoded),
-        () => {}
-      );
-      setRunning(true);
-    } catch (e) {
-      setError(e?.message || 'No se pudo iniciar la cámara. Concede permisos e intenta otra vez.');
-    } finally {
-      setStarting(false);
-    }
+    setScanKey((k) => k + 1);
+    setScanning(true);
   }
 
-  async function stop() {
-    const s = scannerRef.current;
-    if (!s) return;
-    try {
-      if (s.isScanning) await s.stop();
-      await s.clear();
-    } catch {}
-    scannerRef.current = null;
-    setRunning(false);
+  function stop() {
+    setScanning(false);
   }
 
   function lookup(code) {
@@ -101,13 +48,9 @@ export default function Scanner() {
     }
   }
 
-  async function onDecoded(text) {
-    const code = (text || '').trim();
-    if (!code || busyRef.current) return;
-    busyRef.current = true;
-    navigator.vibrate?.(60);
-    await stop();
-    lookup(code);
+  function onDetected(text) {
+    setScanning(false);
+    lookup(text);
   }
 
   function tryManual(e) {
@@ -117,7 +60,7 @@ export default function Scanner() {
     setManualId('');
   }
 
-  const idle = !running && !starting && !scanned && !unknownCode;
+  const idle = !scanning && !scanned && !unknownCode;
 
   return (
     <div className="flex flex-col gap-4">
@@ -135,11 +78,6 @@ export default function Scanner() {
               </p>
             </div>
             <Button size="lg" onClick={start}><Camera /> Iniciar cámara</Button>
-            {error && (
-              <p className="flex items-start gap-2 text-sm text-destructive">
-                <TriangleAlert className="mt-0.5 size-4 shrink-0" /> {error}
-              </p>
-            )}
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
               <div className="h-px flex-1 bg-border" /> o escribe el código <div className="h-px flex-1 bg-border" />
             </div>
@@ -162,13 +100,7 @@ export default function Scanner() {
         </Card>
       )}
 
-      <div className={running || starting ? 'flex flex-col gap-2' : 'hidden'}>
-        <div className="relative overflow-hidden rounded-2xl bg-black shadow-lg">
-          <div id={READER_ID} />
-          {starting && <div className="grid h-64 place-items-center text-sm text-white/70">Abriendo cámara…</div>}
-        </div>
-        <Button variant="outline" onClick={stop}><CameraOff /> Detener cámara</Button>
-      </div>
+      {scanning && <CameraScanner key={scanKey} onDetected={onDetected} onClose={stop} />}
 
       {scanned && (
         <Card>
